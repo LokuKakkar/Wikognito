@@ -2,7 +2,7 @@
 
 This set of files describes what the project is through Phase 8, what was left out on purpose, how to run a code-only copy on a new machine, how to move article backups, and what an operator still needs before a real domain.
 
-They are meant to be copied together. The original [README.md](../README.md) is unchanged.
+They are meant to be copied together. Local setup lives in [DEVELOPMENT.md](../DEVELOPMENT.md). The GitHub front page is [README.md](../README.md).
 
 | File | What it covers |
 |------|----------------|
