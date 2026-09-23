@@ -1,0 +1,172 @@
+{
+  "version": "v1",
+  "generatedAt": "2026-09-02T10:41:01.265Z",
+  "sheet": "/illustrations/v1/sheet.png",
+  "assets": [
+    {
+      "id": "thinking",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/thinking.svg"
+    },
+    {
+      "id": "cheer",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/cheer.svg"
+    },
+    {
+      "id": "headscratch",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/headscratch.svg"
+    },
+    {
+      "id": "revealed",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/revealed.svg"
+    },
+    {
+      "id": "victory",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/victory.svg"
+    },
+    {
+      "id": "magnifier_e",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/magnifier_e.svg"
+    },
+    {
+      "id": "confused",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/confused.svg"
+    },
+    {
+      "id": "books_big",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/books_big.svg"
+    },
+    {
+      "id": "reading_side",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/reading_side.svg"
+    },
+    {
+      "id": "papers",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/papers.svg"
+    },
+    {
+      "id": "reading_stack",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/reading_stack.svg"
+    },
+    {
+      "id": "writing",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/writing.svg"
+    },
+    {
+      "id": "glasses",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/glasses.svg"
+    },
+    {
+      "id": "books_small",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/books_small.svg"
+    },
+    {
+      "id": "clue",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/clue.svg"
+    },
+    {
+      "id": "wave",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/wave.svg"
+    },
+    {
+      "id": "win_podium",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/win_podium.svg"
+    },
+    {
+      "id": "hmm",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/hmm.svg"
+    },
+    {
+      "id": "article_title",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/article_title.svg"
+    },
+    {
+      "id": "sleeping",
+      "kind": "mascot",
+      "src": "/illustrations/v1/mascot/sleeping.svg"
+    },
+    {
+      "id": "doc",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/doc.svg"
+    },
+    {
+      "id": "magnifier",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/magnifier.svg"
+    },
+    {
+      "id": "signpost",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/signpost.svg"
+    },
+    {
+      "id": "books",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/books.svg"
+    },
+    {
+      "id": "text",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/text.svg"
+    },
+    {
+      "id": "question",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/question.svg"
+    },
+    {
+      "id": "thought",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/thought.svg"
+    },
+    {
+      "id": "ink",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/ink.svg"
+    },
+    {
+      "id": "bookmark",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/bookmark.svg"
+    },
+    {
+      "id": "puzzle",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/puzzle.svg"
+    },
+    {
+      "id": "eye",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/eye.svg"
+    },
+    {
+      "id": "scroll",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/scroll.svg"
+    },
+    {
+      "id": "badge",
+      "kind": "decor",
+      "src": "/illustrations/v1/decor/badge.svg"
+    }
+  ]
+}\n

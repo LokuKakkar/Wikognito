@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: redactle-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: redactle
+      POSTGRES_USER: redactle
+      POSTGRES_PASSWORD: redactle_dev
+    ports:
+      # Host 5433 avoids clashing with a local Postgres already on 5432.
+      - "5433:5432"
+    volumes:
+      - redactle_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redactle -d redactle"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: redactle-redis
+    restart: unless-stopped
+    ports:
+      # Host 6380 avoids clashing with a local Redis already on 6379.
+      - "6380:6379"
+    volumes:
+      - redactle_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  redactle_pg_data:
+  redactle_redis_data:

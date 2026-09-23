@@ -1,0 +1,3397 @@
+/* ==========================================================================
+   Wikognito design tokens — dark detective desk (Phase 9A)
+
+   New tokens are grouped by physical concept. The original token names are
+   kept at the bottom as aliases so the rest of this stylesheet keeps working
+   while later phases migrate rules onto the new names.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* --- environment: the desk itself --------------------------------- */
+  --desk-deep: #0d0a07;
+  --desk-base: #17120d;
+  --desk-raised: #221b14;
+  --desk-vignette: rgba(5, 3, 2, 0.66);
+  --desk-lamp: rgba(201, 164, 76, 0.07);
+
+  /* --- paper: the case document and the notepad --------------------- */
+  --paper: #cfc5b1;
+  --paper-warm: #ded3bd;
+  --paper-shade: #b3a894;
+  --paper-edge: #8d8371;
+  --paper-crease: rgba(89, 78, 60, 0.22);
+  /* Notepad rules: faint blue feint with a red left margin, as on real pads. */
+  --paper-rule: rgba(94, 116, 148, 0.34);
+  --paper-margin-rule: rgba(160, 74, 62, 0.5);
+
+  /* --- ink -------------------------------------------------------- */
+  --ink-strong: #f6f1e6;
+  --ink: #ebe4d5;
+  --ink-soft: #a99e8c;
+  /* #8b8171 is the dimmest warm grey that still clears 4.5:1 on --desk-base. */
+  --ink-faint: #8b8171;
+  --ink-paper: #1e1a15;
+
+  /* --- redaction and discovery ------------------------------------- */
+  /* Redactions sit on paper now, so the bar is ink rather than grey. */
+  --redacted: #17130e;
+  --redaction-edge: rgba(0, 0, 0, 0.55);
+  --gold: #c9a44c;
+  --gold-bright: #e2bf6d;
+  --gold-soft: #33280f;
+  /* --gold is unreadable as text on paper (1.4:1). --gold-ink is the darkest
+     usable equivalent and clears 4.6:1, for recovered title words. */
+  --gold-ink: #6b4c10;
+  --gold-wash: rgba(201, 164, 76, 0.28);
+
+  /* --- semantic ---------------------------------------------------- */
+  --tone-hit: #82a96d;
+  --tone-miss: #8a8074;
+  --tone-error: #c26354;
+
+  /* --- edges and depth --------------------------------------------- */
+  --rule: #322619;
+  --rule-strong: #46351f;
+  --shadow-object: 0 18px 38px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shadow-paper: 0 10px 26px rgba(0, 0, 0, 0.5);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* --- spacing and radii ------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius: 3px;
+  --radius-paper: 1px;
+
+  /* --- typography --------------------------------------------------- */
+  --font-ui: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-typewriter: var(--font-courier-prime), "Courier New", ui-monospace, monospace;
+  /* Fountain-pen cursive for the notepad. Caveat read as a marker, not a hand. */
+  --font-hand: var(--font-hand-face), "Segoe Script", cursive;
+  /* Desktop rule pitch. Mobile tightens this back to a folded pad. */
+  --note-line: 2.4rem;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* --- motion ------------------------------------------------------- */
+  --dur-quick: 110ms;
+  --dur-base: 180ms;
+  --dur-slow: 340ms;
+  /* Must stay under the 900ms window GamePage holds .just-revealed for. */
+  --dur-reveal: 620ms;
+  --dur-stamp: 380ms;
+  --ease-paper: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-impact: cubic-bezier(0.2, 0.9, 0.3, 1.2);
+
+  /* --- z layers ----------------------------------------------------- */
+  --z-desk: 0;
+  --z-paper: 10;
+  --z-object: 20;
+  --z-nav: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+
+  /* --- layout ------------------------------------------------------- */
+  --nav-height: 3.5rem;
+  --control-max: 200px;
+  --measure: 42rem;
+  --notepad-w: 29rem;
+  /* How much of a folded notepad stays on screen. Phase 9B drives the fold. */
+  --notepad-fold-peek: 5.5rem;
+
+  /* --- aliases: original token names, remapped onto the desk palette -- */
+  --bg: var(--desk-base);
+  --bg-elevated: var(--desk-deep);
+  --surface: var(--desk-raised);
+  --muted: var(--ink-soft);
+  --accent: var(--gold);
+  --accent-soft: var(--gold-soft);
+  --border: var(--rule);
+  --interactive: var(--ink-strong);
+  --success: var(--tone-hit);
+  --error: var(--tone-error);
+  --warning: var(--gold);
+  --revealed: var(--gold);
+  --hit: var(--tone-hit);
+  --miss: var(--tone-miss);
+  --focus: var(--gold-bright);
+  --shadow: var(--shadow-object);
+  --font-article: var(--font-typewriter);
+  --transition: var(--dur-base) var(--ease-paper);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+a {
+  color: var(--accent);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+/* The focus ring has to survive on both the dark desk and, from Phase 9B, on
+   light paper. The dark halo behind the gold outline gives it a hard edge on
+   either surface. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(8, 5, 3, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Zero the duration tokens as well as the blanket override, so components
+     that read --dur-* directly also stop animating. */
+  :root {
+    --dur-quick: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+    --dur-reveal: 0ms;
+    --dur-stamp: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .word.just-revealed,
+  .word.in-title.just-revealed,
+  .word.in-title.just-revealed::after,
+  .case-stamp-striking,
+  .notepad-pen,
+  .notepad-pen-img,
+  .notepad-flash,
+  .guess-history li.just-written {
+    animation: none !important;
+  }
+}
+
+.app-shell {
+  min-height: 100dvh;
+}
+
+.app-shell-game {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Detective desk environment
+   Three stacked layers: the desk raster, a CSS vignette, and the app content
+   above both. The first two are fixed so the desk stays put while documents
+   scroll over it.
+   ========================================================================== */
+
+.desk {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+}
+
+.app-shell-game .desk {
+  height: 100dvh;
+  min-height: 0;
+}
+
+.desk-surface {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-desk);
+  pointer-events: none;
+  background-color: var(--desk-base);
+  background-image: url("/assets/detective/environment/desk.png");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+/* The vignette and lamp glow are CSS, layered over the raster, so the desk
+   still reads as a lit desk even if the artwork is absent. */
+.desk-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-desk);
+  pointer-events: none;
+  background:
+    radial-gradient(58% 42% at 50% 20%, var(--desk-lamp) 0%, transparent 72%),
+    radial-gradient(
+      124% 92% at 50% 40%,
+      transparent 0%,
+      transparent 40%,
+      var(--desk-vignette) 100%
+    );
+}
+
+.desk-content {
+  position: relative;
+  z-index: var(--z-paper);
+  min-height: 100dvh;
+}
+
+.app-shell-game .desk-content {
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Secondary pages keep a calmer desk so their content stays readable until
+   Phase 9D restyles them. */
+.desk-page .desk-surface {
+  opacity: 0.5;
+}
+
+.desk-page .desk-vignette {
+  background:
+    radial-gradient(70% 50% at 50% 0%, var(--desk-lamp) 0%, transparent 76%),
+    linear-gradient(to bottom, rgba(5, 3, 2, 0.35) 0%, var(--desk-vignette) 100%);
+}
+
+.app-shell-game .admin-nav {
+  margin: 0;
+  padding: 0.4rem 1.25rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: var(--space-5) 1.25rem 4rem;
+}
+
+/* The nav reads as the scored far edge of the desk rather than a site
+   header: no solid bar, a two-tone rule, and typed labels. */
+.app-nav {
+  position: relative;
+  z-index: var(--z-nav);
+  height: var(--nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 1.25rem;
+  flex-shrink: 0;
+  background: linear-gradient(to bottom, rgba(8, 5, 3, 0.86), rgba(8, 5, 3, 0.52));
+  border-bottom: 1px solid var(--rule-strong);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.045), 0 10px 22px rgba(0, 0, 0, 0.4);
+}
+
+.nav-brand {
+  color: var(--ink-strong);
+  text-decoration: none;
+  font-family: var(--font-typewriter);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-size: 0.86rem;
+}
+
+.nav-brand:hover {
+  color: var(--gold);
+}
+
+.nav-desktop {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+}
+
+.nav-desktop a,
+.nav-menu a,
+.nav-desktop button,
+.replay,
+.secondary-action,
+.secondary-action-button,
+.guess-form button,
+.auth-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nav-desktop a,
+.nav-menu a {
+  /* Cream, not the softer grey: these labels sit on the desk photo through the translucent bar. */
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--font-typewriter);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color var(--transition);
+}
+
+.nav-desktop a:hover,
+.nav-menu a:hover {
+  color: var(--ink-strong);
+}
+
+.nav-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--gold-bright);
+  font-family: var(--font-typewriter);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+}
+
+/* The current page is marked like a stamped tab, not just recoloured. */
+.nav-desktop a[aria-current="page"],
+.nav-menu a[aria-current="page"] {
+  color: var(--gold-bright);
+  box-shadow: inset 0 -2px 0 var(--gold-bright);
+}
+
+.nav-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink);
+  padding: 0.45rem 0.7rem;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.nav-toggle:hover {
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+.nav-menu {
+  display: none;
+}
+
+.auth-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.auth-bar a {
+  color: var(--accent);
+}
+
+/* Controls read as stamped/engraved desk hardware, not filled SaaS pills:
+   flat, near-square, typewriter labels, letterspaced small caps. */
+.auth-sign-in,
+.auth-logout,
+.guess-form button,
+.replay,
+.secondary-action,
+.secondary-action-button,
+.pager button,
+.auth-form button[type="submit"] {
+  padding: 0.5rem 0.95rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: var(--font-typewriter);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background var(--transition), border-color var(--transition),
+    color var(--transition);
+}
+
+a.auth-sign-in,
+.nav-desktop a.auth-sign-in,
+.nav-menu a.auth-sign-in,
+.guess-form button,
+.replay,
+.auth-form button[type="submit"] {
+  background: var(--gold);
+  color: #17130b;
+  text-decoration: none;
+  border-color: var(--gold);
+  font-weight: 700;
+  box-shadow: var(--shadow-inset);
+}
+
+a.auth-sign-in:hover,
+.nav-desktop a.auth-sign-in:hover,
+.nav-menu a.auth-sign-in:hover,
+.guess-form button:hover,
+.replay:hover,
+.auth-form button[type="submit"]:hover {
+  background: var(--gold-bright);
+  border-color: var(--gold-bright);
+  color: #17130b;
+}
+
+.auth-logout,
+.secondary-action,
+.secondary-action-button,
+.pager button {
+  background: transparent;
+  border-color: var(--rule-strong);
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.auth-logout:hover,
+.secondary-action:hover,
+.secondary-action-button:hover,
+.pager button:hover {
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+.auth-avatar,
+.profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--rule-strong);
+}
+
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+}
+
+.auth-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.auth-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-typewriter);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.admin-auth-bar {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 0;
+}
+
+/* Case headings are typed, not set: uppercase, letterspaced, no optical
+   tightening. */
+.header h1,
+.page-title {
+  font-family: var(--font-typewriter);
+  font-size: clamp(1.5rem, 3.2vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-strong);
+  margin: 0 0 0.35rem;
+}
+
+.page h2,
+.settings-section h2,
+.modal h2 {
+  font-family: var(--font-typewriter);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.page-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.page-title-row .page-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-title-decor {
+  flex-shrink: 0;
+  max-width: 3.25rem;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+}
+
+.illustrated-split {
+  display: grid;
+  grid-template-columns: minmax(0, 38rem) minmax(0, 1fr);
+  align-items: end;
+  gap: 1.25rem;
+}
+
+.illustrated-split-art {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.illustrated-split-art .illo {
+  max-width: min(20rem, 56vw);
+}
+
+.result-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.result-illo {
+  flex-shrink: 0;
+  max-width: 7.5rem;
+  margin-top: -0.25rem;
+}
+
+.error-illo {
+  margin: 1rem 0 0;
+  max-width: 14rem;
+}
+
+@media (max-width: 720px) {
+  .illustrated-split {
+    grid-template-columns: 1fr;
+  }
+
+  .illustrated-split-art {
+    display: none;
+  }
+
+  .page-title-decor {
+    max-width: 2.75rem;
+  }
+
+  .dossier-head {
+    flex-wrap: wrap;
+  }
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Document metadata (case number, date) is typed onto the file, so it takes
+   the typewriter face rather than the UI stack. */
+.article-pane > .muted {
+  font-family: var(--font-typewriter);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.error {
+  color: var(--error);
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 360px;
+  margin: 1.25rem 0;
+}
+
+.auth-form label,
+.settings-section label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.95rem;
+}
+
+.auth-form input,
+.guess-form input,
+.settings-section input {
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.auth-form button[type="submit"]:disabled,
+.guess-form button:disabled,
+.pager button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-switch {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.stats-grid div {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+}
+
+.stats-grid dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.stats-grid dd {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Investigation workspace slots
+
+   Two named areas sit on the desk: the case document and the notepad. The
+   class names are kept as-is because tests select on them; the grid areas
+   are what Phase 9B builds the real document and notepad into.
+   ========================================================================== */
+
+.game-shell {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--notepad-w);
+  grid-template-areas: "document notepad";
+}
+
+/* Now that the paper document supplies its own contrast, the pane only needs
+   enough of a wash to read as the shadowed stretch of desk the file lies on —
+   the ceremony and feedback notes above the document sit on this. */
+.article-pane {
+  grid-area: document;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-5) clamp(1rem, 4vw, 3rem) 3rem;
+  background: linear-gradient(
+    to right,
+    rgba(9, 6, 4, 0) 0%,
+    rgba(9, 6, 4, 0.72) 7%,
+    rgba(9, 6, 4, 0.72) 100%
+  );
+}
+
+/* The notepad slot is just the area of desk the pad lies on; the pad itself
+   is .notepad inside it. */
+.control-pane {
+  grid-area: notepad;
+  min-height: 0;
+  overflow: visible;
+  padding: clamp(1.75rem, 6vh, 3rem) var(--space-4) clamp(1.5rem, 5vh, 2.5rem);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to left, rgba(9, 6, 4, 0.55), rgba(9, 6, 4, 0.15));
+}
+
+/* ==========================================================================
+   Detective notepad
+   ========================================================================== */
+
+/* .notepad deliberately carries no transform or filter: either would make it
+   the containing block for the guess sheet's position:fixed backdrop. The
+   tilt and shadow live on the sheet and binding instead. */
+.notepad {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.notepad-sheet {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transform: rotate(-0.4deg);
+  color: var(--ink-paper);
+  padding: 2.1rem 1.2rem 1.9rem 2rem;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-paper);
+  background-color: var(--paper-warm);
+  background-image:
+    url("/assets/detective/textures/paper-grain.svg"),
+    /* red margin rule */
+      linear-gradient(
+        to right,
+        transparent 1.4rem,
+        var(--paper-margin-rule) 1.4rem,
+        var(--paper-margin-rule) calc(1.4rem + 1px),
+        transparent calc(1.4rem + 1px)
+      ),
+    /* blue feint */
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent calc(var(--note-line) - 1px),
+        var(--paper-rule) calc(var(--note-line) - 1px),
+        var(--paper-rule) var(--note-line)
+      );
+  background-size: 180px 180px, auto, auto;
+  background-blend-mode: multiply, normal, normal;
+  box-shadow:
+    inset 0 0 2.5rem rgba(120, 104, 76, 0.28),
+    0 14px 26px rgba(0, 0, 0, 0.55);
+}
+
+/* Wire binding down the left edge. */
+.notepad-binding {
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  left: -0.45rem;
+  width: 1.1rem;
+  z-index: var(--z-object);
+  background-image: radial-gradient(
+    ellipse 46% 30% at 50% 50%,
+    #9a917f 0 55%,
+    #4a4238 58%,
+    transparent 62%
+  );
+  background-size: 100% var(--note-line);
+  background-repeat: repeat-y;
+  transform: rotate(-0.4deg);
+  pointer-events: none;
+}
+
+.notepad-title {
+  margin: 0.1rem 0 0.15rem;
+  font-family: var(--font-hand);
+  font-size: 2.85rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-align: center;
+  color: rgba(30, 24, 18, 0.92);
+  border-bottom: none;
+  padding: 0.35rem 0.5rem 0.7rem;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.notepad-title::before,
+.notepad-title::after {
+  content: "";
+  position: absolute;
+  left: 0.35rem;
+  right: 0.35rem;
+  height: 1px;
+  background: rgba(46, 39, 28, 0.32);
+}
+
+.notepad-title::before {
+  top: 0.08rem;
+}
+
+.notepad-title::after {
+  bottom: 0.22rem;
+  box-shadow: 0 3px 0 rgba(46, 39, 28, 0.16);
+}
+
+.notepad-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.notepad-flash-reject {
+  animation: notepad-reject-wash var(--dur-slow) var(--ease-paper) both;
+}
+
+.notepad-flash-confirm {
+  animation: notepad-confirm-wash var(--dur-slow) var(--ease-paper) both;
+}
+
+@keyframes notepad-reject-wash {
+  0% {
+    background: transparent;
+  }
+  35% {
+    background: rgba(160, 74, 62, 0.12);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+@keyframes notepad-confirm-wash {
+  0% {
+    background: transparent;
+  }
+  40% {
+    background: rgba(201, 164, 76, 0.14);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* The pen parks on the newest note. It is decorative, so it never takes
+   pointer events away from the input or the history underneath. */
+.notepad-pen {
+  position: absolute;
+  right: 0.15rem;
+  top: 5.6rem;
+  width: 2.15rem;
+  height: auto;
+  z-index: var(--z-object);
+  pointer-events: none;
+  user-select: none;
+  line-height: 0;
+  filter: drop-shadow(-4px 6px 7px rgba(0, 0, 0, 0.5));
+}
+
+.notepad-pen.is-placed {
+  transition:
+    top var(--dur-slow) var(--ease-paper),
+    left var(--dur-slow) var(--ease-paper);
+}
+
+.notepad-pen-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 14% 86%;
+  transform: rotate(8deg);
+}
+
+.notepad-pen[data-scribbling="true"] .notepad-pen-img {
+  animation: pen-scribble 560ms var(--ease-impact) both;
+}
+
+@keyframes pen-scribble {
+  0% {
+    transform: rotate(12deg) translate(0.15rem, 0);
+  }
+  16% {
+    transform: rotate(4deg) translate(-0.95rem, 0.18rem);
+  }
+  34% {
+    transform: rotate(14deg) translate(0.2rem, -0.08rem);
+  }
+  52% {
+    transform: rotate(3deg) translate(-1.15rem, 0.16rem);
+  }
+  70% {
+    transform: rotate(11deg) translate(0.1rem, 0.04rem);
+  }
+  86% {
+    transform: rotate(5deg) translate(-0.55rem, 0.12rem);
+  }
+  100% {
+    transform: rotate(8deg) translate(0, 0);
+  }
+}
+
+/* Tablet: keep both slots, narrow the notepad and calm the desk so the
+   document keeps the majority of the width. */
+@media (min-width: 769px) and (max-width: 1099px) {
+  :root {
+    --notepad-w: 23rem;
+  }
+
+  /* Typed labels are wider than the sans they replaced; tighten the nav so
+     the link row still fits beside the brand and auth block. */
+  .nav-brand {
+    letter-spacing: 0.16em;
+  }
+
+  .nav-desktop {
+    gap: 0.8rem;
+  }
+
+  .nav-desktop a {
+    letter-spacing: 0.08em;
+  }
+
+  .desk-game .desk-surface {
+    opacity: 0.72;
+  }
+
+  .article-pane {
+    padding: var(--space-4) clamp(0.85rem, 3vw, 1.75rem) 2.5rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .notepad-title {
+    font-size: 2.2rem;
+  }
+
+  .notepad .chip {
+    font-size: 0.84rem;
+    padding: 0.3rem 0.75rem;
+  }
+
+  .give-up-link {
+    font-size: 0.88rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  .notepad-title {
+    font-size: 2.65rem;
+    padding: 0.35rem 0.55rem 0.9rem;
+  }
+}
+
+/* ==========================================================================
+   Case document
+
+   A sheet of paper lying on the desk. The paper is CSS rather than artwork
+   because it has to stretch to any article length inside the scrolling pane;
+   the clip and folder tab are fixed-size pieces layered on top of it.
+   ========================================================================== */
+
+.case-document {
+  position: relative;
+  max-width: calc(var(--measure) + 9rem);
+  margin: 0 auto;
+  padding-top: 0.75rem;
+}
+
+.case-document-sheet {
+  position: relative;
+  color: var(--ink-paper);
+  background-color: var(--paper);
+  background-image:
+    /* grain */
+    url("/assets/detective/textures/paper-grain.svg"),
+    /* age toward the edges */
+    radial-gradient(120% 80% at 50% 0%, var(--paper-warm) 0%, transparent 60%),
+    linear-gradient(to bottom, var(--paper-warm) 0%, var(--paper) 22%, var(--paper) 78%, var(--paper-shade) 100%);
+  background-size: 180px 180px, auto, auto;
+  background-blend-mode: multiply, normal, normal;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-paper);
+  box-shadow:
+    var(--shadow-paper),
+    /* the sheets stacked underneath */ 3px 4px 0 -1px var(--paper-shade),
+    6px 8px 0 -2px rgba(120, 110, 92, 0.55);
+  padding: clamp(1.5rem, 3.5vw, 2.75rem) clamp(1.25rem, 4vw, 3.25rem)
+    clamp(2rem, 4vw, 3rem);
+}
+
+/* Left binder margin, drawn as part of the paper rather than a border so it
+   sits inside the padding like a real ruled margin. */
+.case-document-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 clamp(0.7rem, 2.2vw, 1.6rem);
+  width: 1px;
+  background: var(--paper-margin-rule);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Punch holes down the binder margin. */
+.case-document-sheet::after {
+  content: "";
+  position: absolute;
+  left: clamp(0.35rem, 1.1vw, 0.8rem);
+  top: 18%;
+  bottom: 18%;
+  width: 0.55rem;
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    var(--paper-crease) 0 42%,
+    transparent 44%
+  );
+  background-size: 100% 46%;
+  background-repeat: repeat-y;
+  pointer-events: none;
+}
+
+.case-document-tab {
+  position: absolute;
+  top: 0;
+  right: clamp(1rem, 6%, 3rem);
+  width: clamp(4.5rem, 16%, 7rem);
+  height: 1.35rem;
+  background: linear-gradient(to bottom, #9c8b6b 0%, #7f7053 100%);
+  border: 1px solid rgba(60, 52, 38, 0.6);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.case-document-clip {
+  position: absolute;
+  top: -0.35rem;
+  left: clamp(1.75rem, 9%, 4.5rem);
+  width: 1.15rem;
+  height: 3.1rem;
+  z-index: var(--z-object);
+  border: 2px solid #8d8676;
+  border-radius: 0.6rem;
+  background: transparent;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transform: rotate(-4deg);
+}
+
+.case-document-header {
+  margin-bottom: clamp(1.1rem, 2.4vw, 1.75rem);
+  padding-bottom: 0.9rem;
+  border-bottom: 2px solid rgba(46, 39, 28, 0.35);
+}
+
+/* Repeated classification banner, stencilled across the top of the sheet. */
+.case-classification {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--font-typewriter);
+  font-size: clamp(0.62rem, 1.4vw, 0.74rem);
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: #8f2a22;
+  margin-bottom: 0.85rem;
+}
+
+/* The second stencil is decorative repetition; drop it when the sheet is too
+   narrow to carry both without wrapping. */
+@media (max-width: 560px) {
+  .case-classification span:last-child {
+    display: none;
+  }
+}
+
+.case-label {
+  margin: 0;
+  font-family: var(--font-typewriter);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(30, 24, 18, 0.88);
+}
+
+.case-number {
+  margin: 0.15rem 0 0.75rem;
+  font-family: var(--font-typewriter);
+  font-size: clamp(1.35rem, 3.4vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-paper);
+}
+
+.case-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.6rem;
+  margin: 0;
+  font-family: var(--font-typewriter);
+  font-size: 0.72rem;
+}
+
+.case-meta div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.case-meta dt {
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(30, 24, 18, 0.82);
+}
+
+.case-meta dd {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(30, 26, 21, 0.88);
+  border-bottom: 1px solid rgba(46, 39, 28, 0.3);
+}
+
+.case-meta-extra {
+  margin: 0.75rem 0 0;
+  font-size: 0.72rem;
+}
+
+/* Inside the document, "muted" means faded ink, not the desk's grey. */
+.case-document-sheet .muted {
+  color: rgba(30, 24, 18, 0.82);
+}
+
+.case-document-sheet a {
+  color: var(--gold-ink);
+}
+
+.case-document-body {
+  min-width: 0;
+}
+
+/* Typewriter body copy needs a smaller size and looser leading than the
+   serif it replaces, otherwise long articles set too wide and read slowly. */
+.puzzle-article {
+  max-width: var(--measure);
+  line-height: 1.9;
+  font-size: 1.02rem;
+  font-family: var(--font-typewriter);
+  letter-spacing: -0.005em;
+  white-space: normal;
+  color: var(--ink-paper);
+}
+
+/* --- redactions ---------------------------------------------------------
+   Ink struck over the word rather than a flat rectangle: slightly uneven
+   edges, a bleed shadow into the paper, and a faint grain over the bar.
+   The hit area is unchanged — this is all painting on the same inline box. */
+
+.word.redacted {
+  position: relative;
+  cursor: zoom-in;
+  color: transparent;
+  padding: 0.04em 0.14em;
+  user-select: none;
+  background-color: var(--redacted);
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    transparent 22%,
+    rgba(0, 0, 0, 0.35) 55%,
+    transparent 78%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  /* Uneven corners read as a hand-drawn strike rather than a UI chip. */
+  border-radius: 2px 4px 3px 5px / 5px 3px 4px 2px;
+  box-shadow:
+    0 1px 2px var(--redaction-edge),
+    inset 0 0 0.35em rgba(0, 0, 0, 0.6);
+}
+
+/* Three edge shapes cycled across the article so no two neighbouring
+   redactions are identical. */
+.word.redacted:nth-of-type(3n + 1) {
+  border-radius: 5px 2px 4px 3px / 3px 5px 2px 4px;
+}
+
+.word.redacted:nth-of-type(3n + 2) {
+  border-radius: 3px 5px 2px 4px / 4px 2px 5px 3px;
+}
+
+.word.redacted .redacted-blocks {
+  color: var(--redacted);
+}
+
+.word.redacted:hover {
+  box-shadow:
+    0 1px 3px var(--redaction-edge),
+    inset 0 0 0.35em rgba(0, 0, 0, 0.6),
+    0 0 0 1px var(--gold-wash);
+}
+
+.word.redacted.inspecting .redacted-blocks {
+  visibility: hidden;
+}
+
+.word.redacted .letter-count {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  background: transparent;
+  color: var(--paper-warm);
+  border: 0;
+  padding: 0;
+  font-size: 0.72em;
+  font-weight: 700;
+  font-family: var(--font-typewriter);
+  line-height: 1;
+  z-index: 1;
+  padding-left: 0.4rem;
+}
+
+/* --- recovered words ---------------------------------------------------- */
+
+.word.revealed {
+  color: var(--ink-paper);
+  padding: 0 0.1em;
+}
+
+.word.revealed.in-title,
+.word.in-title.revealed {
+  color: var(--gold-ink);
+  background: var(--gold-wash);
+  box-shadow: 0 1px 0 var(--gold-ink);
+}
+
+.word.in-title {
+  font-weight: 700;
+}
+
+.word.just-revealed {
+  animation: ink-lift var(--dur-reveal) var(--ease-paper) both;
+}
+
+.word.in-title.just-revealed {
+  animation: ink-lift var(--dur-reveal) var(--ease-paper) both,
+    title-strike 620ms var(--ease-impact) both, title-pulse 620ms var(--ease-paper) both;
+}
+
+.word.in-title.just-revealed::after {
+  content: "";
+  position: absolute;
+  inset: -0.35em -0.25em;
+  border: 2px solid var(--gold-ink);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: title-bullseye 620ms var(--ease-impact) both;
+}
+
+.word.in-title.revealed {
+  position: relative;
+}
+
+.word.history-focus {
+  outline: 2px solid var(--gold-ink);
+  outline-offset: 2px;
+}
+
+/* The ink lifts off the paper and the recovered word settles in underneath. */
+@keyframes ink-lift {
+  0% {
+    color: transparent;
+    background-color: var(--redacted);
+    box-shadow: 0 1px 2px var(--redaction-edge);
+  }
+  55% {
+    color: transparent;
+    background-color: rgba(23, 19, 14, 0.35);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  75% {
+    color: var(--gold-ink);
+    background-color: var(--gold-wash);
+  }
+  100% {
+    color: inherit;
+    background-color: transparent;
+  }
+}
+
+/* Title words get a second, louder beat: a gold ring struck around the word. */
+@keyframes title-strike {
+  0% {
+    outline: 2px solid var(--gold);
+    outline-offset: 10px;
+  }
+  60% {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
+@keyframes title-pulse {
+  0%,
+  100% {
+    background-color: var(--gold-wash);
+  }
+  40% {
+    background-color: rgba(201, 164, 76, 0.5);
+  }
+}
+
+@keyframes title-bullseye {
+  0% {
+    opacity: 0.9;
+    transform: scale(1.45);
+  }
+  70% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+.case-document-sheet[data-paper-reaction="hit"] {
+  animation: paper-hit var(--dur-slow) var(--ease-paper);
+}
+
+.case-document-sheet[data-paper-reaction="title"] {
+  animation: paper-title var(--dur-slow) var(--ease-impact);
+}
+
+@keyframes paper-hit {
+  0%,
+  100% {
+    filter: none;
+  }
+  40% {
+    filter: brightness(1.04);
+  }
+}
+
+@keyframes paper-title {
+  0%,
+  100% {
+    box-shadow: var(--shadow-paper), 3px 4px 0 -1px var(--paper-shade),
+      6px 8px 0 -2px rgba(120, 110, 92, 0.55);
+  }
+  40% {
+    box-shadow: var(--shadow-paper), 0 0 0 3px var(--gold-wash), 3px 4px 0 -1px var(--paper-shade),
+      6px 8px 0 -2px rgba(120, 110, 92, 0.55);
+  }
+}
+
+.case-stamp {
+  position: absolute;
+  top: 1.1rem;
+  right: clamp(0.75rem, 4vw, 1.75rem);
+  z-index: var(--z-object);
+  width: min(10.5rem, 46%);
+  pointer-events: none;
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+}
+
+.case-stamp-mark {
+  width: 100%;
+  height: auto;
+  mix-blend-mode: multiply;
+  filter: drop-shadow(0 2px 0 rgba(80, 18, 14, 0.25));
+}
+
+.case-stamp-caption {
+  margin: 0;
+  font-family: var(--font-typewriter);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7a241c;
+}
+
+.case-stamp-striking,
+.case-stamp-settled {
+  transform: rotate(-8deg);
+}
+
+.case-stamp-striking {
+  animation: stamp-impact var(--dur-stamp) var(--ease-impact) both;
+}
+
+@keyframes stamp-impact {
+  0% {
+    opacity: 0;
+    transform: rotate(-18deg) translate(-12%, -22%) scale(1.38);
+  }
+  58% {
+    opacity: 1;
+    transform: rotate(-6deg) translate(1%, 3%) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-8deg) translate(0, 0) scale(1);
+  }
+}
+
+/* --- notepad furniture: counter, give-up, writing line ------------------- */
+
+.game-hud {
+  display: grid;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.difficulty-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.difficulty-toggle {
+  max-width: 100%;
+}
+
+.give-up-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #7a2e26;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  font-family: var(--font-typewriter);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.give-up-link:hover {
+  color: rgba(150, 46, 34, 1);
+}
+
+.briefing-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--gold-ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  font-family: var(--font-typewriter);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.briefing-link:hover {
+  color: #4e370b;
+}
+
+/* The guess counter reads as a small stamp pressed into the pad. */
+.notepad .chip {
+  border-radius: 2px;
+  border: 1px solid rgba(46, 39, 28, 0.4);
+  background: transparent;
+  color: rgba(46, 39, 28, 0.8);
+  font-family: var(--font-typewriter);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The input is a ruled writing line, not a boxed field: the underline, the
+   handwriting, and the caret all say "write here". */
+.notepad .guess-form {
+  position: relative;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(46, 39, 28, 0.22);
+  flex-shrink: 0;
+}
+
+.guess-write {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.guess-prompt {
+  font-family: var(--font-hand);
+  font-size: 2.35rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.1;
+  color: var(--ink-paper);
+}
+
+.guess-line {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.notepad .guess-form-coach {
+  margin: 0 -0.35rem;
+  padding: 0.55rem 0.35rem 0.4rem;
+  background: linear-gradient(to top, var(--gold-wash), transparent 78%);
+}
+
+.notepad .guess-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.15rem 0.15rem 0.3rem;
+  border: 0;
+  border-bottom: 3px solid rgba(46, 39, 28, 0.72);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-paper);
+  caret-color: #1c3f7a;
+  font-family: var(--font-hand);
+  font-size: 2.05rem;
+  line-height: 1.3;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.notepad .guess-form input::placeholder {
+  color: rgba(30, 24, 18, 0.58);
+  font-family: var(--font-hand);
+}
+
+.notepad .guess-form input:focus {
+  outline: none;
+  border-bottom-color: var(--gold-ink);
+  background: linear-gradient(to bottom, transparent 55%, var(--gold-wash) 100%);
+}
+
+/* Keyboard users still get the standard ring, drawn to hug the writing line. */
+.notepad .guess-form input:focus-visible {
+  outline: 2px solid var(--gold-ink);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+.notepad .guess-form button {
+  flex-shrink: 0;
+  padding: 0.48rem 0.8rem;
+  font-size: 0.78rem;
+  background: var(--ink-paper);
+  border-color: var(--ink-paper);
+  color: var(--paper-warm);
+  box-shadow: none;
+}
+
+.notepad .guess-form button:hover:not(:disabled) {
+  background: var(--gold-ink);
+  border-color: var(--gold-ink);
+}
+
+.notepad .guess-form-coach input {
+  border-bottom-color: var(--gold-ink);
+  animation: write-line-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes write-line-pulse {
+  0%,
+  100% {
+    border-bottom-color: var(--gold-ink);
+  }
+  50% {
+    border-bottom-color: #c9a44c;
+  }
+}
+
+.history-desktop {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.last-guess-mobile {
+  display: none;
+}
+
+.guess-sheet-toggle,
+.guess-sheet-backdrop {
+  display: none;
+}
+
+.case-card,
+.result-ceremony {
+  max-width: 32rem;
+  margin: 0 auto 1.25rem;
+  padding: 1.1rem 1.25rem 1.25rem;
+  color: var(--ink-paper);
+  background-color: var(--paper-warm);
+  background-image: url("/assets/detective/textures/paper-grain.svg");
+  background-size: 180px 180px;
+  background-blend-mode: multiply;
+  border: 1px solid var(--paper-edge);
+  box-shadow: var(--shadow-paper);
+}
+
+.briefing-card,
+.case-intro-card {
+  max-width: 40rem;
+}
+
+.case-card .page-title {
+  color: var(--ink-paper);
+}
+
+.case-filed {
+  margin: 0;
+  font-family: var(--font-typewriter);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(30, 24, 18, 0.82);
+}
+
+.case-lead,
+.briefing-lead {
+  margin: 0.85rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--ink-paper);
+}
+
+.case-moves,
+.briefing-moves {
+  list-style: none;
+  padding: 0;
+  margin: 0.9rem 0 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.case-moves li,
+.briefing-move {
+  margin: 0;
+  padding: 0.7rem 0.8rem 0.75rem;
+  border: 1px solid rgba(107, 76, 16, 0.5);
+  background: rgba(201, 164, 76, 0.18);
+}
+
+.case-moves strong,
+.briefing-move strong {
+  display: block;
+  font-family: var(--font-typewriter);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-paper);
+}
+
+.case-moves span,
+.briefing-move p,
+.briefing-notes {
+  color: rgba(30, 24, 18, 0.9);
+}
+
+.case-moves span {
+  display: block;
+  margin-top: 0.2rem;
+  line-height: 1.4;
+}
+
+.briefing-move p {
+  margin: 0.3rem 0 0;
+  line-height: 1.4;
+}
+
+.briefing-move-kicker {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-family: var(--font-typewriter);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+}
+
+.case-aside {
+  margin: 0.8rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: rgba(30, 24, 18, 0.86);
+}
+
+.case-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.1rem;
+  margin-top: 1rem;
+}
+
+.case-briefing-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--gold-ink);
+  cursor: pointer;
+  font-family: var(--font-typewriter);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.case-briefing-link:hover {
+  color: #4e370b;
+}
+
+.briefing-overlay {
+  width: min(40rem, 100%);
+}
+
+.briefing-overlay .case-card {
+  margin: 0;
+  max-height: min(90dvh, 46rem);
+  overflow: auto;
+}
+
+.case-card .muted {
+  color: rgba(30, 24, 18, 0.82);
+}
+
+.result-ceremony .case-kicker,
+.case-notice-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.35rem;
+  color: var(--gold-ink);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: var(--font-typewriter);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.result-heading {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-typewriter);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.result-ceremony .answer {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0.35rem 0 0.75rem;
+  text-transform: capitalize;
+  font-family: var(--font-typewriter);
+}
+
+.result-ceremony .muted {
+  color: rgba(30, 24, 18, 0.82);
+}
+
+/* These links are drawn for the dark desk. On a paper card they need coffee ink. */
+.result-ceremony .secondary-action,
+.case-card .secondary-action,
+.case-notice .secondary-action,
+.case-notice .secondary-action-button,
+.modal .secondary-action,
+.dossier .secondary-action {
+  color: var(--ink-paper);
+  border-color: rgba(46, 39, 28, 0.45);
+}
+
+.result-ceremony .secondary-action:hover,
+.case-card .secondary-action:hover,
+.case-notice .secondary-action:hover,
+.case-notice .secondary-action-button:hover,
+.modal .secondary-action:hover,
+.dossier .secondary-action:hover {
+  color: #1a1208;
+  border-color: var(--gold-ink);
+}
+
+.case-notice {
+  max-width: 32rem;
+  margin: 1.5rem auto 0;
+  padding: 1.4rem 1.5rem 1.6rem;
+  color: var(--ink-paper);
+  background-color: var(--paper);
+  background-image: url("/assets/detective/textures/paper-grain.svg");
+  background-size: 180px 180px;
+  background-blend-mode: multiply;
+  border: 1px solid var(--paper-edge);
+  box-shadow: var(--shadow-paper);
+}
+
+.case-notice .page-title {
+  color: var(--ink-paper);
+}
+
+.case-notice .muted,
+.case-notice .error {
+  font-family: var(--font-typewriter);
+}
+
+.case-notice-error .error {
+  color: #7a241c;
+}
+
+.illo {
+  display: block;
+  max-width: min(16rem, 55vw);
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.25));
+}
+
+.illo-float {
+  animation: illo-float 4.6s ease-in-out infinite;
+  transform-origin: 50% 70%;
+}
+
+.illo-sway {
+  animation: illo-sway 5.4s ease-in-out infinite;
+  transform-origin: 50% 80%;
+}
+
+.illo-sparkle {
+  animation: illo-sparkle 2.8s ease-in-out infinite;
+}
+
+.illo-pop {
+  animation: illo-pop 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes illo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes illo-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-1.4deg);
+  }
+}
+
+@keyframes illo-sparkle {
+  0%,
+  100% {
+    opacity: 0.95;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes illo-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.case-kicker,
+.guest-nudge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.case-card .case-kicker,
+.dossier .case-kicker,
+.briefing-card .case-kicker {
+  color: var(--gold-ink);
+}
+
+.guest-nudge {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--ink);
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 0;
+}
+
+.guest-nudge-card {
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-paper);
+  padding: 0.85rem 1rem;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--ink-paper);
+}
+
+.guest-nudge-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--gold-ink);
+  font-family: var(--font-typewriter);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guest-nudge-card p {
+  margin: 0;
+}
+
+.guest-nudge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.howto-steps {
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.briefing-notes {
+  margin: 0.9rem 0 1rem;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.briefing-notes strong {
+  font-family: var(--font-typewriter);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.play-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem 0.75rem;
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(30, 26, 21, 0.22);
+  border-radius: var(--radius);
+  background: #f7f3ea;
+  color: var(--ink-paper);
+  font-family: var(--font-ui);
+  font-size: 0.84rem;
+  font-weight: 450;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  flex-shrink: 0;
+}
+
+.play-hint-body {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.play-hint-body > :first-child {
+  margin-top: 0;
+}
+
+.play-hint-body > :last-child {
+  margin-bottom: 0;
+}
+
+.play-hint-dismiss {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--gold-ink);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.field-note {
+  margin: 0;
+  padding: 0.28rem 0.15rem 0.28rem 0.5rem;
+  border-left: 2px solid var(--gold-ink);
+  font-family: var(--font-ui);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: rgba(30, 24, 18, 0.92);
+}
+
+.field-note-dismiss {
+  display: inline;
+  margin-left: 0.45rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--gold-ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.field-note-locate {
+  margin: 0 0 0.35rem;
+  flex-shrink: 0;
+}
+
+.share-link-card {
+  border: 1px dashed rgba(46, 39, 28, 0.38);
+  padding: 0.7rem 0.85rem;
+  margin: 0.85rem 0 1rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.share-link-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: rgba(30, 24, 18, 0.82);
+  font-size: 0.72rem;
+  font-family: var(--font-typewriter);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.share-link {
+  color: var(--gold-ink);
+  word-break: break-all;
+  font-family: var(--font-typewriter);
+  font-size: 0.92rem;
+}
+
+.share-preview {
+  white-space: pre-wrap;
+  background: transparent;
+  border: 1px solid rgba(46, 39, 28, 0.22);
+  color: var(--ink-paper);
+  padding: 0.75rem 0.9rem;
+  font-family: var(--font-typewriter);
+  font-size: 0.88rem;
+  margin: 0 0 0.25rem;
+}
+
+.share-modal {
+  max-height: min(90dvh, 46rem);
+  overflow: auto;
+}
+
+.icon-button {
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: inline-flex;
+}
+
+.modal-backdrop .icon-button {
+  color: var(--ink-paper);
+}
+
+.sound-toggle {
+  margin-top: 0.85rem;
+}
+
+.controls,
+.guess-form,
+.control-chips {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.control-chips {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+button.chip {
+  cursor: pointer;
+}
+
+.chip.give-up {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.guess-form {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.guess-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-stats,
+.control-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+.game-status {
+  margin: 0 0 1rem;
+  padding: 0.35rem 0 0.75rem;
+  font-family: var(--font-typewriter);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  color: rgba(30, 24, 18, 0.9);
+}
+
+.game-status.is-miss,
+.game-status.is-duplicate {
+  color: #7a3b32;
+}
+
+.game-status.is-hit {
+  color: #3f6b33;
+}
+
+.game-status.is-title {
+  color: var(--gold-ink);
+  font-weight: 700;
+}
+
+.game-status.status-won .answer,
+.game-status.status-gave_up .answer {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0.35rem 0 0.75rem;
+  text-transform: capitalize;
+}
+
+.terminal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.verify-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.65rem 1.25rem;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--border);
+}
+
+.archive-list,
+.history-list,
+.leaderboard-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.archive-list a,
+.history-list a,
+.leaderboard-row {
+  color: var(--ink);
+  text-decoration: none;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.leaderboard-row.is-me {
+  border-color: var(--accent);
+}
+
+.pager {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 1rem 0;
+}
+
+.profile-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin: 1.25rem 0;
+}
+
+/* ==========================================================================
+   Secondary pages: paper dossiers on the desk
+   ========================================================================== */
+
+.desk-prop {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+
+.dossier {
+  position: relative;
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1.6rem 1.45rem 2rem;
+  color: var(--ink-paper);
+  background-color: var(--paper);
+  background-image: url("/assets/detective/textures/paper-grain.svg");
+  background-size: 180px 180px;
+  background-blend-mode: multiply;
+  border: 1px solid var(--paper-edge);
+  box-shadow: var(--shadow-paper);
+}
+
+.dossier-wide {
+  max-width: 48rem;
+}
+
+.dossier-clip {
+  position: absolute;
+  top: -0.45rem;
+  left: 0.9rem;
+  width: 2.35rem;
+  z-index: 1;
+  transform: rotate(-18deg);
+}
+
+.dossier-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.dossier-titles {
+  min-width: 0;
+  flex: 1;
+}
+
+.dossier .page-title {
+  color: var(--ink-paper);
+}
+
+.dossier .muted,
+.dossier .stats-grid dt,
+.dossier .play-state {
+  color: rgba(30, 24, 18, 0.82);
+}
+
+.dossier a,
+.dossier .auth-switch {
+  color: var(--gold-ink);
+}
+
+.dossier .error {
+  color: #7a241c;
+}
+
+.dossier h2,
+.dossier .settings-section h2 {
+  color: rgba(30, 24, 18, 0.88);
+}
+
+.dossier .stats-grid div,
+.dossier .archive-list a,
+.dossier .history-list a,
+.dossier .leaderboard-row {
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-edge);
+  color: var(--ink-paper);
+}
+
+.dossier .stats-grid dd {
+  color: var(--ink-paper);
+  font-family: var(--font-typewriter);
+}
+
+.dossier .stats-grid dt {
+  font-family: var(--font-typewriter);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.dossier input {
+  background: var(--paper-warm);
+  color: var(--ink-paper);
+  border-color: var(--paper-edge);
+}
+
+.dossier .activity-heatmap {
+  --activity-empty: #b7ad9a;
+  --activity-gave-up: #8a6a4a;
+  --activity-won: #3f6b33;
+}
+
+.dossier .pager button,
+.dossier .secondary-action-button {
+  color: var(--ink-paper);
+  border-color: var(--paper-edge);
+}
+
+.dossier .theme-toggle {
+  border-color: var(--paper-edge);
+}
+
+.dossier .theme-toggle button {
+  color: rgba(30, 24, 18, 0.82);
+}
+
+.dossier .theme-toggle button[aria-pressed="true"] {
+  background: var(--gold-wash);
+  color: var(--ink-paper);
+}
+
+.archive-stamp {
+  width: 4.25rem;
+  flex-shrink: 0;
+}
+
+.dossier-hat {
+  width: 5.5rem;
+  flex-shrink: 0;
+}
+
+.leaderboard-plaque {
+  width: min(14rem, 46%);
+  flex-shrink: 0;
+}
+
+.intro-folders {
+  width: min(16rem, 52vw);
+}
+
+.briefing-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.briefing-magnifier {
+  width: 3.4rem;
+  flex-shrink: 0;
+}
+
+.archive-folder {
+  width: 3.1rem;
+  height: auto;
+  object-fit: contain;
+}
+
+.archive-case-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.archive-list a {
+  grid-template-columns: 3.1rem minmax(0, 1fr) auto;
+  min-height: 3.25rem;
+}
+
+.leaderboard-row {
+  grid-template-columns: 2.4rem 2.1rem minmax(0, 1fr) auto;
+  min-height: 3.25rem;
+}
+
+.leaderboard-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-typewriter);
+  font-weight: 700;
+}
+
+.leaderboard-medal {
+  width: 1.7rem;
+  height: auto;
+}
+
+.leaderboard-row.is-me {
+  border-color: var(--gold-ink);
+  box-shadow: inset 3px 0 0 var(--gold-ink);
+}
+
+.detective-avatar {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.detective-avatar-sm {
+  width: 32px;
+  height: 32px;
+}
+
+.detective-avatar-md {
+  width: 48px;
+  height: 48px;
+}
+
+.detective-avatar-lg {
+  width: 72px;
+  height: 72px;
+}
+
+.avatar-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.avatar-choice {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  width: 4.75rem;
+  padding: 0.35rem 0.2rem 0.45rem;
+  border: 1px solid var(--paper-edge);
+  background: var(--paper-warm);
+  cursor: pointer;
+  font-family: var(--font-typewriter);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: rgba(30, 24, 18, 0.86);
+  min-height: 44px;
+}
+
+.avatar-choice img {
+  width: 3.4rem;
+  height: 3.4rem;
+  object-fit: contain;
+}
+
+.avatar-choice input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.avatar-choice.is-selected {
+  border-color: var(--ink-paper);
+  box-shadow: inset 0 0 0 1px var(--ink-paper);
+  color: var(--ink-paper);
+  font-weight: 700;
+}
+
+.avatar-choice:focus-within {
+  outline: 2px solid var(--gold-ink);
+  outline-offset: 2px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: var(--z-modal);
+}
+
+.modal {
+  background-color: var(--paper);
+  background-image: url("/assets/detective/textures/paper-grain.svg");
+  background-size: 180px 180px;
+  background-blend-mode: multiply;
+  border: 1px solid var(--paper-edge);
+  padding: 1.25rem 1.4rem;
+  max-width: 28rem;
+  width: 100%;
+  border-radius: var(--radius-paper);
+  box-shadow: var(--shadow-paper);
+  color: var(--ink-paper);
+}
+
+.solve-stats-modal {
+  max-width: 38rem;
+}
+
+.solve-stats-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  font-family: var(--font-typewriter);
+}
+
+.solve-stats-head .case-notice-kicker {
+  color: var(--gold-ink);
+}
+
+.solve-stats-head strong {
+  display: block;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.solve-stats-grid dt {
+  color: rgba(30, 24, 18, 0.82);
+  font-size: 0.72rem;
+  font-family: var(--font-typewriter);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.solve-stats-grid dd {
+  margin: 0.15rem 0 0;
+  font-weight: 700;
+  color: var(--ink-paper);
+  font-family: var(--font-typewriter);
+}
+
+.solve-stats-global-heading {
+  font-size: 0.78rem;
+  margin: 0.5rem 0 0.65rem;
+  font-family: var(--font-typewriter);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(46, 39, 28, 0.7);
+}
+
+.solve-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+}
+
+.solve-stats-calendar {
+  margin-bottom: 0.85rem;
+}
+
+.guess-histogram {
+  margin: 0.5rem 0 0;
+}
+
+.guess-histogram-plot {
+  display: flex;
+  align-items: stretch;
+  min-height: 7.5rem;
+  gap: 0.4rem;
+}
+
+.guess-histogram-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  width: 1.75rem;
+  padding: 0.1rem 0;
+}
+
+.guess-histogram-grid {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.guess-histogram-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--border);
+  pointer-events: none;
+}
+
+.guess-histogram-bars {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 3px;
+  height: 100%;
+  padding: 0 0.1rem;
+}
+
+.guess-histogram-col {
+  flex: 1 1 0;
+  max-width: 1.35rem;
+  min-width: 0.55rem;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.guess-histogram-bar {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  background: #8d8371;
+  border-radius: 2px 2px 0 0;
+}
+
+.guess-histogram-col.is-you .guess-histogram-bar {
+  background: var(--gold-ink);
+}
+
+.guess-histogram-x {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.guess-histogram-y-spacer {
+  width: 1.75rem;
+  flex-shrink: 0;
+}
+
+.guess-histogram-x-labels {
+  display: flex;
+  justify-content: flex-start;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  color: rgba(30, 24, 18, 0.78);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.guess-histogram-x-labels span {
+  flex: 1 1 0;
+  max-width: 1.35rem;
+  min-width: 0.55rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* --- guesses, written onto the pad --------------------------------------
+   Entries are handwritten and sit on the ruled lines: the row height matches
+   --note-line, the feint spacing in .notepad-sheet, so notes land on the rules. */
+
+.guess-history {
+  list-style: none;
+  padding: 0;
+  padding-top: 0.7rem;
+  margin: 0;
+  display: grid;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: start;
+  font-family: var(--font-hand);
+  color: var(--ink-paper);
+}
+
+
+p.guess-history {
+  display: block;
+  flex: none;
+  font-size: 1.7rem;
+  color: rgba(30, 24, 18, 0.72);
+}
+
+.guess-history-empty {
+  min-height: var(--note-line);
+  margin: 0;
+}
+
+.title-hit {
+  flex-shrink: 0;
+  margin-left: 0.3rem;
+  color: var(--gold-ink);
+  font-size: 0.85em;
+}
+
+.guess-history li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--note-line);
+  font-size: 2rem;
+  line-height: var(--note-line);
+}
+
+/* Slight rotation per entry so the column does not read as a data table. */
+.guess-history li:nth-child(2n) .guess-word {
+  transform: rotate(-0.5deg);
+}
+
+.guess-history li:nth-child(3n) .guess-word {
+  transform: rotate(0.4deg);
+}
+
+.guess-word {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
+  transform-origin: left center;
+}
+
+.guess-word-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The count is a small typed margin note, so a long cursive guess cannot
+   push it off the page. */
+.guess-hits {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-family: var(--font-typewriter);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.guess-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--note-line);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.guess-row:disabled {
+  cursor: default;
+}
+
+.guess-history li.hit .guess-word-text {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--gold-ink);
+  text-underline-offset: 0.16em;
+}
+
+.guess-history li.hit .guess-hits {
+  color: #3f6b33;
+  font-weight: 700;
+}
+
+.guess-history-coaching li.locate-anchor .guess-row {
+  background: linear-gradient(to right, var(--gold-wash), transparent 80%);
+}
+
+/* Misses are struck through rather than recoloured loudly — a crossed-out
+   note, not an error state. */
+.guess-history li.miss .guess-word {
+  color: rgba(30, 24, 18, 0.68);
+  text-decoration: line-through;
+  text-decoration-color: rgba(160, 74, 62, 0.6);
+  text-decoration-thickness: 1px;
+}
+
+.guess-history li.miss .guess-hits {
+  color: rgba(30, 24, 18, 0.62);
+}
+
+.guess-history li.just-written {
+  animation: note-write var(--dur-slow) var(--ease-paper) both;
+}
+
+.guess-history li.just-written.miss {
+  animation: note-reject var(--dur-slow) var(--ease-paper) both;
+}
+
+@keyframes note-write {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes note-reject {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-0.35rem);
+  }
+  65% {
+    transform: translateX(0.22rem);
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.admin-import-form,
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.admin-import-form input {
+  flex: 1;
+  min-width: 240px;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.admin-import-form button {
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+}
+
+.admin-result {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-left: 4px solid var(--accent);
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-article-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  font-size: 0.95rem;
+}
+
+.admin-article-table th,
+.admin-article-table td {
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-nav a,
+.admin-play-link {
+  color: var(--accent);
+}
+
+.admin-force {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+}
+
+.settings-section {
+  margin: 1.5rem 0;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.theme-toggle button {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.activity-heatmap {
+  --activity-size: 12px;
+  --activity-gap: 3px;
+  --activity-col: calc(var(--activity-size) + var(--activity-gap));
+  --activity-empty: #21262d;
+  --activity-gave-up: #3d6b4a;
+  --activity-won: #2ea043;
+}
+
+.activity-heatmap.compact {
+  --activity-size: 9px;
+}
+
+.activity-scroll {
+  overflow-x: auto;
+  padding: 0.5rem 0 0.75rem;
+}
+
+.activity-heatmap-inner {
+  display: inline-block;
+  min-width: max-content;
+}
+
+.activity-months-row,
+.activity-grid-row {
+  display: flex;
+  align-items: flex-start;
+}
+
+.activity-weekday-gutter,
+.activity-weekdays {
+  width: 1.75rem;
+  flex-shrink: 0;
+}
+
+.activity-weekdays {
+  display: grid;
+  grid-template-rows: repeat(7, var(--activity-size));
+  gap: var(--activity-gap);
+  font-size: 0.65rem;
+  line-height: var(--activity-size);
+  color: var(--muted);
+}
+
+.activity-months {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--activity-col);
+  font-size: 0.7rem;
+  color: var(--muted);
+  height: 1.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.activity-months span {
+  white-space: nowrap;
+}
+
+.activity-calendar {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, var(--activity-size));
+  grid-auto-columns: var(--activity-size);
+  gap: var(--activity-gap);
+}
+
+.activity-cell {
+  width: var(--activity-size);
+  height: var(--activity-size);
+  border-radius: 2px;
+  background: var(--activity-empty, var(--border));
+}
+
+.activity-cell.played {
+  background: var(--activity-won);
+}
+
+.activity-cell.gave-up {
+  background: var(--activity-gave-up);
+}
+
+.activity-cell.pad {
+  background: transparent;
+}
+
+.activity-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: rgba(30, 24, 18, 0.82);
+}
+
+.activity-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.trend-chart {
+  width: 100%;
+  height: 72px;
+}
+
+.play-state {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --note-line: 1.5rem;
+  }
+
+  .nav-desktop {
+    display: none;
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .nav-brand {
+    letter-spacing: 0.14em;
+    font-size: 0.8rem;
+  }
+
+  .nav-menu[data-open="true"] {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    position: fixed;
+    inset: var(--nav-height) 0 0 auto;
+    width: min(18rem, 86vw);
+    background: var(--desk-raised);
+    border-left: 1px solid var(--rule-strong);
+    padding: 1rem 1.25rem;
+    box-shadow: var(--shadow-object);
+    z-index: var(--z-overlay);
+  }
+
+  /* Mobile is a different composition, not a squeezed desktop: the document
+     is the dominant object and the desk stays visible around it. */
+  .game-shell {
+    display: flex;
+    flex-direction: column;
+    grid-template-areas: none;
+  }
+
+  .desk-game .desk-surface {
+    opacity: 0.62;
+  }
+
+  .article-pane {
+    flex: 1;
+    padding: 1rem 1rem 0.5rem;
+  }
+
+  /* The pad is folded up from the bottom edge of the desk: only the last
+     couple of notes and the writing line show, and the sheet expands it. */
+  .control-pane {
+    border-left: 0;
+    max-height: none;
+    position: sticky;
+    bottom: 0;
+    flex: none;
+    padding: 0;
+    background: none;
+  }
+
+  .notepad {
+    flex: none;
+  }
+
+  .notepad-binding {
+    display: none;
+  }
+
+  /* Folded edge: the pad creases over the desk instead of butting against it,
+     and it sits square to the screen rather than tilted. */
+  .notepad-sheet {
+    transform: none;
+    gap: 0.35rem;
+    padding: 0.75rem 0.9rem 0.9rem 1.9rem;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 1px solid var(--paper-edge);
+    box-shadow:
+      inset 0 3px 6px rgba(120, 104, 76, 0.4),
+      0 -12px 26px rgba(0, 0, 0, 0.55);
+  }
+
+  .notepad-title {
+    display: none;
+  }
+
+  .notepad-pen {
+    right: 0.35rem;
+    top: 0.1rem;
+    width: 1.6rem;
+  }
+
+  .history-desktop {
+    display: none;
+  }
+
+  .last-guess-mobile {
+    display: block;
+  }
+
+  .last-guess-mobile .guess-history {
+    overflow: visible;
+    flex: none;
+  }
+
+  .guess-history li,
+  .guess-row {
+    font-size: 1.15rem;
+  }
+
+  p.guess-history {
+    font-size: 1.05rem;
+  }
+
+  .guess-sheet-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: transparent;
+    border: 1px solid rgba(46, 39, 28, 0.4);
+    color: rgba(46, 39, 28, 0.85);
+    border-radius: 2px;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    width: fit-content;
+    font-family: var(--font-typewriter);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .guess-sheet-backdrop {
+    display: grid;
+    align-items: end;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: var(--z-overlay);
+    padding: 0;
+  }
+
+  /* Expanding the pad reveals the full page of notes, still on paper. */
+  .guess-sheet {
+    color: var(--ink-paper);
+    background-color: var(--paper-warm);
+    background-image:
+      url("/assets/detective/textures/paper-grain.svg"),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent calc(var(--note-line) - 1px),
+        var(--paper-rule) calc(var(--note-line) - 1px),
+        var(--paper-rule) var(--note-line)
+      );
+    background-size: 180px 180px, auto;
+    background-blend-mode: multiply, normal;
+    border-top: 1px solid var(--paper-edge);
+    max-height: min(70dvh, 28rem);
+    overflow: auto;
+    padding: 0.85rem 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .guess-sheet-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-typewriter);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .guess-sheet-head .icon-button {
+    color: var(--ink-paper);
+  }
+
+  .archive-list a {
+    grid-template-columns: 2.7rem minmax(0, 1fr) auto;
+  }
+
+  .history-list a {
+    grid-template-columns: 1fr auto;
+  }
+
+  .leaderboard-row {
+    grid-template-columns: 2.1rem 2rem minmax(0, 1fr) auto;
+  }
+
+  .leaderboard-plaque {
+    width: 7.5rem;
+  }
+
+  .dossier {
+    padding: 1.25rem 1rem 1.6rem;
+  }
+
+  .dossier-hat {
+    width: 4.25rem;
+  }
+
+  .archive-stamp {
+    width: 3.4rem;
+  }
+
+  .briefing-magnifier {
+    width: 2.8rem;
+  }
+
+  .case-stamp {
+    width: min(8.75rem, 58%);
+    top: 0.7rem;
+    right: 0.55rem;
+  }
+
+  .guess-prompt {
+    font-size: 1.35rem;
+  }
+
+  .notepad .guess-form input {
+    min-height: 44px;
+    font-size: 1.15rem;
+  }
+
+  .notepad .guess-form button,
+  .guess-sheet-toggle {
+    min-height: 44px;
+  }
+
+  .pager button {
+    min-height: 44px;
+  }
+}

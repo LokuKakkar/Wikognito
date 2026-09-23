@@ -1,0 +1,49 @@
+{
+  "name": "redactle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Wikognito — a redacted Wikipedia word game",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @redactle/backend --filter @redactle/frontend dev",
+    "build": "pnpm -r --filter @redactle/shared --filter @redactle/puzzle-engine --filter @redactle/article-provider --filter @redactle/article-ingestion --filter @redactle/backend --filter @redactle/frontend build",
+    "infra:up": "DOCKER_HOST=unix:///var/run/docker.sock docker compose -f infrastructure/docker/docker-compose.yml up -d",
+    "infra:down": "DOCKER_HOST=unix:///var/run/docker.sock docker compose -f infrastructure/docker/docker-compose.yml down",
+    "db:migrate": "pnpm --filter @redactle/backend db:migrate",
+    "db:migrate:deploy": "pnpm --filter @redactle/backend db:migrate:deploy",
+    "db:seed": "pnpm --filter @redactle/backend db:seed",
+    "db:reset": "pnpm --filter @redactle/backend db:reset",
+    "verify:production": "pnpm --filter @redactle/backend verify:production",
+    "redis:clear": "DOCKER_HOST=unix:///var/run/docker.sock docker compose -f infrastructure/docker/docker-compose.yml exec -T redis redis-cli FLUSHDB",
+    "ingest:dummy": "pnpm --filter @redactle/article-ingestion ingest:dummy",
+    "articles:import:wikipedia": "pnpm --filter @redactle/article-ingestion import:wikipedia --",
+    "articles:backup": "pnpm --filter @redactle/article-ingestion articles:backup",
+    "articles:restore": "pnpm --filter @redactle/article-ingestion articles:restore",
+    "puzzles:generate": "pnpm --filter @redactle/article-ingestion puzzles:generate --",
+    "puzzles:validate": "pnpm --filter @redactle/article-ingestion puzzles:validate",
+    "puzzles:publish-today": "pnpm --filter @redactle/article-ingestion puzzles:publish-today",
+    "test": "pnpm -r --if-present test",
+    "test:watch": "pnpm -r --if-present test:watch",
+    "test:puzzle-engine": "pnpm --filter @redactle/puzzle-engine test",
+    "test:backend": "pnpm --filter @redactle/backend test",
+    "test:frontend": "pnpm --filter @redactle/frontend test",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/node": "^22.17.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.32.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.0",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum AuthProvider {
+  GOOGLE
+  EMAIL
+}
+
+enum AuthTokenType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum GameResultSource {
+  DAILY
+  ARCHIVE
+}
+
+model User {
+  id              String    @id @default(cuid())
+  role            UserRole  @default(USER)
+  email           String?   @unique
+  displayName     String?
+  avatarUrl       String?
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  identities  AuthIdentity[]
+  sessions    Session[]
+  gameResults GameResult[]
+  authTokens  AuthToken[]
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model AuthIdentity {
+  id              String       @id @default(cuid())
+  userId          String
+  provider        AuthProvider
+  providerSubject String
+  passwordHash    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerSubject])
+  @@index([userId])
+}
+
+/// Browser/session identity. Gameplay state stays in Redis, keyed by the same id.
+model Session {
+  id         String   @id
+  userId     String?
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+
+  user        User?        @relation(fields: [userId], references: [id])
+  gameResults GameResult[]
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Article {
+  id         String   @id
+  externalId String   @unique
+  title      String
+  source     String
+  sourceUrl  String?
+  revisionId String?
+  language   String   @default("en")
+  /// Normalized plaintext article — server-only; never returned by gameplay APIs.
+  rawContent String
+  /// Original MediaWiki source when imported from Wikipedia.
+  sourceWikitext String?
+  /// SHA-256 of normalized rawContent.
+  contentHash    String?
+  wordCount  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  puzzles Puzzle[]
+}
+
+model Puzzle {
+  id                       String       @id
+  articleId                String
+  puzzleNumber             Int          @default(0)
+  scheduledDate            DateTime?    @db.Date
+  generatorVersion         String
+  /// Opaque public puzzle DTO (id/meta + encoded payload). Immutable once published.
+  clientPuzzleData         Json
+  status                   PuzzleStatus @default(DRAFT)
+  title                    String
+  titleMatchKey            String
+  wordCount                Int          @default(0)
+  guessableWordCount       Int          @default(0)
+  uniqueGuessableWordCount Int          @default(0)
+  titleTokenCount          Int          @default(0)
+  difficultyValue          Int          @default(0)
+  difficultyVersion        Int          @default(0)
+  createdAt                DateTime     @default(now())
+  publishedAt              DateTime?
+
+  article         Article      @relation(fields: [articleId], references: [id])
+  gameResults     GameResult[]
+  dailyAssignment DailyPuzzle?
+  puzzleStats     PuzzleStats?
+
+  @@index([status, createdAt])
+  @@index([articleId, generatorVersion, status])
+  @@index([status, scheduledDate])
+}
+
+model DailyPuzzle {
+  date        DateTime @id @db.Date
+  puzzleId    String   @unique
+  publishedAt DateTime @default(now())
+
+  puzzle Puzzle @relation(fields: [puzzleId], references: [id])
+}
+
+enum PuzzleStatus {
+  DRAFT
+  READY
+  PUBLISHED
+  ARCHIVED
+}
+
+model GameResult {
+  id            String            @id @default(cuid())
+  userId        String?
+  /// Opaque browser session id (same as Session.id / cookie).
+  sessionId     String
+  puzzleId      String
+  attemptId     String
+  attemptNumber Int
+  isOfficial    Boolean           @default(true)
+  source        GameResultSource  @default(DAILY)
+  startedAt     DateTime
+  completedAt   DateTime
+  durationMs    Int
+  guessCount    Int
+  hitGuessCount Int?
+  won           Boolean
+  score         Int
+  scoreVersion  Int               @default(0)
+  status        String
+  createdAt     DateTime          @default(now())
+
+  user    User?   @relation(fields: [userId], references: [id])
+  session Session @relation(fields: [sessionId], references: [id])
+  puzzle  Puzzle  @relation(fields: [puzzleId], references: [id])
+
+  @@unique([sessionId, attemptId])
+  @@index([userId])
+  @@index([puzzleId])
+  @@index([sessionId, puzzleId])
+  @@index([userId, isOfficial])
+  @@index([userId, createdAt])
+  @@index([puzzleId, source, isOfficial, won, scoreVersion, score(sort: Desc), completedAt], map: "GameResult_leaderboard_idx")
+}
+
+model PuzzleStats {
+  puzzleId           String   @id
+  gamesPlayed        Int      @default(0)
+  gamesWon           Int      @default(0)
+  gamesGaveUp        Int      @default(0)
+  medianGuessCount   Int?
+  medianAccuracy     Float?
+  medianDurationMs   Int?
+  guessHistogram     Json
+  updatedAt          DateTime @updatedAt
+
+  puzzle Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+}

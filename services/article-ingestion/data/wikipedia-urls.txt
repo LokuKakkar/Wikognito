@@ -1,0 +1,13 @@
+# Phase 2 initial Wikipedia corpus (one URL per line).
+# The importer normalizes identity and skips duplicates.
+
+https://en.wikipedia.org/wiki/Pet_door
+https://en.wikipedia.org/wiki/Albert_Einstein
+https://en.wikipedia.org/wiki/Black_hole
+https://en.wikipedia.org/wiki/Photosynthesis
+https://en.wikipedia.org/wiki/Mount_Everest
+https://en.wikipedia.org/wiki/Jazz
+https://en.wikipedia.org/wiki/DNA
+https://en.wikipedia.org/wiki/Silk_Road
+https://en.wikipedia.org/wiki/Coffee
+https://en.wikipedia.org/wiki/The_Moon

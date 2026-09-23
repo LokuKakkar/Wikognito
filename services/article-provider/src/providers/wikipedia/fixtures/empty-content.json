@@ -1,0 +1,25 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 1,
+        "ns": 0,
+        "title": "Empty page",
+        "canonicalurl": "https://en.wikipedia.org/wiki/Empty_page",
+        "revisions": [
+          {
+            "revid": 1,
+            "slots": {
+              "main": {
+                "contentmodel": "wikitext",
+                "contentformat": "text/x-wiki",
+                "content": ""
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

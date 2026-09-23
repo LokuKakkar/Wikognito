@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <!-- Tiling paper grain. Rasterised once by the browser and repeated, so it
+       costs a single small decode rather than a live filter on the document.
+       Replace with a photographic texture at the same path if one is exported;
+       keep it seamless at 180x180. -->
+  <filter id="grain" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="7" stitchTiles="stitch" />
+    <feColorMatrix type="saturate" values="0" />
+  </filter>
+  <rect width="180" height="180" filter="url(#grain)" opacity="0.55" />
+</svg>

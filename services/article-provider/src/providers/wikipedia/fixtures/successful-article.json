@@ -1,0 +1,26 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 194054,
+        "ns": 0,
+        "title": "Pet door",
+        "canonicalurl": "https://en.wikipedia.org/wiki/Pet_door",
+        "revisions": [
+          {
+            "revid": 123456789,
+            "parentid": 123456788,
+            "slots": {
+              "main": {
+                "contentmodel": "wikitext",
+                "contentformat": "text/x-wiki",
+                "content": "{{Short description|Cat flap}}\nA '''pet door''' or '''cat flap''' is a small opening.\n\n== History ==\nPet doors have been used for centuries.<ref>Smith 2020</ref>\n\n== References ==\n{{Reflist}}\n\n[[Category:Doors]]"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
