@@ -69,8 +69,31 @@ export function isLocalFrontendOrigin(origin: string): boolean {
   }
 }
 
+/** Render injects PORT. Local dev keeps BACKEND_PORT (default 4000) when PORT is unset. */
+export function resolveListenPort(env: NodeJS.ProcessEnv): number {
+  const fromPlatform = env.PORT?.trim();
+  const raw = fromPlatform || env.BACKEND_PORT?.trim() || "4000";
+  if (!/^[0-9]+$/.test(raw)) {
+    throw new Error("Invalid configuration: PORT/BACKEND_PORT must be a positive integer");
+  }
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    throw new Error("Invalid configuration: PORT/BACKEND_PORT must be a positive integer");
+  }
+  return port;
+}
+
+/** Local and Render both bind all interfaces unless HOST is set. */
+export function resolveListenHost(env: NodeJS.ProcessEnv = process.env): string {
+  const host = env.HOST?.trim();
+  return host ? host : "0.0.0.0";
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const parsed = EnvSchema.safeParse(env);
+  const parsed = EnvSchema.safeParse({
+    ...env,
+    BACKEND_PORT: String(resolveListenPort(env)),
+  });
   if (!parsed.success) {
     const details = parsed.error.issues
       .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
