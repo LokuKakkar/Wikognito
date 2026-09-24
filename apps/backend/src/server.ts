@@ -1,4 +1,4 @@
-import { loadConfig } from "./infrastructure/config/env.js";
+import { loadConfig, resolveListenHost } from "./infrastructure/config/env.js";
 import { buildApp } from "./app.js";
 import { logger, setLogLevel } from "./infrastructure/logger.js";
 import { disconnectPrisma } from "./infrastructure/postgres/prisma.js";
@@ -20,9 +20,11 @@ async function main(): Promise<void> {
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
-  await app.listen({ port: config.BACKEND_PORT, host: "0.0.0.0" });
+  const host = resolveListenHost();
+  await app.listen({ port: config.BACKEND_PORT, host });
   logger.info("startup", {
     port: config.BACKEND_PORT,
+    host,
     articleSource: config.ARTICLE_SOURCE,
   });
 }

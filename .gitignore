@@ -9,10 +9,10 @@ build/
 out/
 *.tsbuildinfo
 
-# Environment
+# Environment — never commit secrets. .env.example is the name-only catalog.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Logs
 logs/

@@ -4,6 +4,8 @@ import {
   isLocalFrontendOrigin,
   loadConfig,
   PRODUCTION_CHECKED_KEYS,
+  resolveListenHost,
+  resolveListenPort,
 } from "./env.js";
 
 const base = {
@@ -39,6 +41,36 @@ describe("loadConfig", () => {
   it("disables rate limiting by default in test", () => {
     const config = loadConfig({ ...base, NODE_ENV: "test" });
     expect(config.RATE_LIMIT_ENABLED).toBe(false);
+  });
+
+  it("prefers PORT over BACKEND_PORT", () => {
+    const config = loadConfig({ ...base, PORT: "10000", BACKEND_PORT: "4000" });
+    expect(config.BACKEND_PORT).toBe(10000);
+  });
+
+  it("uses BACKEND_PORT when PORT is unset", () => {
+    const config = loadConfig({ ...base, BACKEND_PORT: "4001" });
+    expect(config.BACKEND_PORT).toBe(4001);
+  });
+
+  it("ignores a blank PORT", () => {
+    const config = loadConfig({ ...base, PORT: "   ", BACKEND_PORT: "4001" });
+    expect(config.BACKEND_PORT).toBe(4001);
+  });
+
+  it("rejects a non-numeric PORT", () => {
+    expect(() => loadConfig({ ...base, PORT: "abc" })).toThrow(/PORT/);
+  });
+});
+
+describe("listen address", () => {
+  it("defaults the host to all interfaces", () => {
+    expect(resolveListenHost({})).toBe("0.0.0.0");
+    expect(resolveListenPort({})).toBe(4000);
+  });
+
+  it("uses HOST when set", () => {
+    expect(resolveListenHost({ HOST: "127.0.0.1" })).toBe("127.0.0.1");
   });
 });
 

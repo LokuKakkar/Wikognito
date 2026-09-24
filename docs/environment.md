@@ -23,7 +23,9 @@ The catalog lives in [`.env.example`](../.env.example). Copy it to `.env`. Never
 
 | Name | Secret | Purpose |
 |------|--------|---------|
-| `BACKEND_PORT` | no | Listen port (default 4000) |
+| `BACKEND_PORT` | no | Listen port when `PORT` is unset (default 4000) |
+| `PORT` | no | Platform listen port. Render sets it. Overrides `BACKEND_PORT` |
+| `HOST` | no | Listen address (default `0.0.0.0`) |
 | `SESSION_COOKIE_NAME` | no | Internal cookie name (`redactle_session`) |
 | `SESSION_TTL_SECONDS` | no | Session TTL |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | yes | Google OAuth |

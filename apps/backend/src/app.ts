@@ -68,6 +68,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const probeRedis = deps.checkRedis ?? checkRedisHealth;
   const app = Fastify({
     logger: false,
+    // Render terminates TLS and forwards the visitor address. Trust that hop in production
+    // so rate limits key on the client IP. Tests and local dev keep the direct socket address.
+    trustProxy: config.NODE_ENV === "production",
     requestIdHeader: "x-request-id",
     genReqId: (request) => {
       const incoming = request.headers["x-request-id"];

@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "verify:production": "tsx src/cli/verify-production.ts",
     "db:migrate": "dotenv -e ../../.env -- prisma migrate dev",
-    "db:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:migrate:deploy": "sh -c 'if [ -f ../../.env ]; then exec dotenv -e ../../.env -- prisma migrate deploy; else exec prisma migrate deploy; fi'",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force",
     "prisma:generate": "prisma generate",
