@@ -210,7 +210,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       reply.setCookie(config.SESSION_COOKIE_NAME, sessionId, {
         path: "/",
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: config.NODE_ENV === "production" ? "none" : "lax",
         secure: config.NODE_ENV === "production",
         maxAge: config.SESSION_TTL_SECONDS,
       });
