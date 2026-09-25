@@ -1,4 +1,9 @@
-# What is built (through Phase 8)
+# What is built
+
+Live site: https://wikognito.onrender.com  
+Live API: https://wikognito-api.onrender.com  
+
+Hosted on Render (free): Next.js web service, Fastify web service, Postgres, Key Value. No custom domain. Auth cookies work across those two `onrender.com` hosts. Mail is log-only (`SMTP_URL` empty). Daily publish, if scheduled, is an external HTTPS `POST` to `/api/internal/puzzles/publish-today` (free tier has no cron and sleeps when idle).
 
 **Wikognito** is a redacted-Wikipedia word game. The player sees a hidden article and guesses words. Matching and revealing happen **in the browser**. A guess does not call the API.
 
@@ -33,6 +38,8 @@ Authentication upgrades persistence. It does not unlock play. Anonymous visitors
 - Import Wikipedia articles (admin UI or CLI)
 - Generate / validate READY puzzles and publish today (admin UI or CLI)
 - Preview a stored article at `/admin/play` without changing today’s puzzle
+
+Play difficulty (Settings, default Easy) is client-only. Published puzzles stay redacted with the hard common-word list. Easy and Medium open extra stopwords in the browser, including in the title, so those words are not guessed and are not required to win. Official score v1 is unchanged.
 
 Local URLs after `pnpm dev`:
 
@@ -116,12 +123,30 @@ Local URLs after `pnpm dev`:
 - Mobile guess history in a sheet; article stays full height
 - Lucide line icons in chrome/HUD only
 - Official-once rules, streaks, and score v1 are unchanged
+- Client play difficulty: Easy / Medium / Hard. Default Easy. Does not rewrite the published payload
+
+---
+
+## Where it runs
+
+| Piece | Production |
+|-------|------------|
+| Frontend | Render Web Service `wikognito`, `next start` |
+| Backend | Render Web Service `wikognito-api`, `tsx src/server.ts` |
+| PostgreSQL | Render Postgres (free; no backups, expires) |
+| Redis | Render Key Value (memory only; flush drops sessions, not official results) |
+| Source | GitHub `LokuKakkar/Wikognito` |
+| Custom domain | None |
+| Mail | Console logs |
+| Compose | Local Postgres + Redis only |
+
+`NEXT_PUBLIC_API_BASE_URL` is `https://wikognito-api.onrender.com` (inlined at frontend build). `FRONTEND_ORIGIN` is `https://wikognito.onrender.com`. Google redirect is `https://wikognito-api.onrender.com/api/auth/google/callback`.
 
 ---
 
 ## Intentional gaps
 
-These are **not unfinished bugs**. Phase 7 left them out on purpose.
+These are **not unfinished bugs**. They were left out on purpose.
 
 | Gap | Why |
 |-----|-----|
@@ -141,8 +166,9 @@ These are **not unfinished bugs**. Phase 7 left them out on purpose.
 
 ---
 
-## Related handbook pages
+## Related pages
 
+- [Architecture overview](architecture/overview.md)
+- [Live host notes](deployment.md)
 - [New device from a code-only copy](new-device.md)
 - [Article backups](article-backups.md)
-- [Go live](go-live.md)
