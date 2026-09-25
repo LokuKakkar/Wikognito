@@ -32,8 +32,8 @@ export class ArticleService {
     });
   }
 
-  list(page: number, pageSize: number): Promise<ArticleListResponse> {
-    return this.repo.list(page, pageSize);
+  list(page: number, pageSize: number, q?: string): Promise<ArticleListResponse> {
+    return this.repo.list(page, pageSize, q);
   }
 
   /**

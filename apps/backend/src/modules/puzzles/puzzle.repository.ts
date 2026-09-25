@@ -63,15 +63,26 @@ export class PuzzleRepository {
     return publicDto;
   }
 
-  async list(page: number, pageSize: number): Promise<PuzzleListResponse> {
+  async list(page: number, pageSize: number, q?: string): Promise<PuzzleListResponse> {
     const skip = (page - 1) * pageSize;
+    const query = q?.trim();
+    const where = query
+      ? {
+          OR: [
+            { title: { contains: query, mode: "insensitive" as const } },
+            { id: { contains: query, mode: "insensitive" as const } },
+            { articleId: { contains: query, mode: "insensitive" as const } },
+          ],
+        }
+      : undefined;
     const [rows, total] = await Promise.all([
       this.prisma.puzzle.findMany({
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
+        where,
       }),
-      this.prisma.puzzle.count(),
+      this.prisma.puzzle.count({ where }),
     ]);
 
     return {

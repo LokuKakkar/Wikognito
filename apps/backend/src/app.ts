@@ -5,12 +5,21 @@ import cookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import {
+  AddDossierCaseRequestSchema,
   AdminArticlePlayParamSchema,
+  AdminDossierCaseParamSchema,
+  AdminDossierIdParamSchema,
   ArchivePuzzleParamSchema,
   ArticleListQuerySchema,
   ChangePasswordRequestSchema,
   CompleteGameRequestSchema,
+  CorpusProcessRequestSchema,
+  CreateDossierRequestSchema,
   DeleteAccountRequestSchema,
+  DossierCaseParamSchema,
+  DossierListQuerySchema,
+  DossierSeedRequestSchema,
+  DossierSlugParamSchema,
   EmailAuthRequestSchema,
   ForgotPasswordRequestSchema,
   GeneratePuzzleRequestSchema,
@@ -18,8 +27,10 @@ import {
   LeaderboardQuerySchema,
   ProfileUpdateRequestSchema,
   PuzzleListQuerySchema,
+  ReorderDossierCaseRequestSchema,
   ResetPasswordRequestSchema,
   SessionSyncRequestSchema,
+  UpdateDossierRequestSchema,
   VerifyEmailRequestSchema,
 } from "@redactle/shared";
 import type { WikipediaPageFetcher } from "@redactle/article-ingestion";
@@ -52,6 +63,8 @@ import { AppError, isAuthFailure, toErrorResponse } from "./modules/errors.js";
 import { LeaderboardService } from "./modules/leaderboard/leaderboard.service.js";
 import { rateLimitMax } from "./modules/security/rate-limit.js";
 import { timingSafeEqualSecret } from "./modules/security/secrets.js";
+import { DossierRepository } from "./modules/dossiers/dossier.repository.js";
+import { DossierService } from "./modules/dossiers/dossier.service.js";
 
 export interface AppDeps {
   config: AppConfig;
@@ -178,6 +191,16 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     prisma,
     wikipediaProvider,
     config.PUZZLE_GENERATOR_VERSION,
+  );
+  const dossierService = new DossierService(
+    new DossierRepository(prisma),
+    puzzleRepo,
+    gameRepo,
+    prisma,
+    wikipediaProvider,
+    config.PUZZLE_GENERATOR_VERSION,
+    config.WIKIPEDIA_IMPORT_CONCURRENCY,
+    config.WIKIPEDIA_REQUEST_DELAY_MS,
   );
   const authService = new AuthService(
     prisma,
@@ -326,6 +349,59 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         parsed.data.pageSize,
         identity?.userId ?? null,
       );
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.get("/api/dossiers", async (request, reply) => {
+    try {
+      await ensureSessionId(request, reply);
+      const parsed = DossierListQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier list query." },
+        });
+      }
+      return await dossierService.listPublished(parsed.data.page, parsed.data.pageSize, parsed.data.q);
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.get("/api/dossiers/:slug", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      const parsed = DossierSlugParamSchema.safeParse(request.params);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier slug." },
+        });
+      }
+      const identity = await identitySessions.findWithUser(sessionId);
+      return await dossierService.getPublished(parsed.data.slug, {
+        sessionId,
+        userId: identity?.userId ?? null,
+      });
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.get("/api/dossiers/:slug/cases/:caseId", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      const parsed = DossierCaseParamSchema.safeParse(request.params);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier case." },
+        });
+      }
+      const identity = await identitySessions.findWithUser(sessionId);
+      return await dossierService.getPublishedCase(parsed.data.slug, parsed.data.caseId, {
+        sessionId,
+        userId: identity?.userId ?? null,
+      });
     } catch (error) {
       return mapError(error, reply);
     }
@@ -678,7 +754,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           error: { code: "INVALID_REQUEST", message: "Invalid article list query." },
         });
       }
-      return await articleService.list(parsed.data.page, parsed.data.pageSize);
+      return await articleService.list(parsed.data.page, parsed.data.pageSize, parsed.data.q);
     } catch (error) {
       return mapError(error, reply);
     }
@@ -710,7 +786,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           error: { code: "INVALID_REQUEST", message: "Invalid puzzle list query." },
         });
       }
-      return await puzzleService.list(parsed.data.page, parsed.data.pageSize);
+      return await puzzleService.list(parsed.data.page, parsed.data.pageSize, parsed.data.q);
     } catch (error) {
       return mapError(error, reply);
     }
@@ -747,17 +823,220 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       const sessionId = await ensureSessionId(request, reply);
       requireAdmin(await identitySessions.findWithUser(sessionId));
       const published = await puzzleService.publishToday();
-      logger.info("puzzle_published", {
+      const event =
+        published.status === "PUBLISHED"
+          ? "daily_publish_success"
+          : published.status === "ALREADY_PUBLISHED"
+            ? "daily_publish_already_published"
+            : "daily_publish_no_candidate";
+      logger.info(event, {
         requestId: request.id,
         status: published.status,
         puzzleId: published.puzzleId,
+        date: published.date,
       });
       return published;
     } catch (error) {
-      logger.error("publish_failed", {
+      logger.error("daily_publish_failed", {
         requestId: request.id,
         errorCode: error instanceof AppError ? error.code : "PUBLISH_FAILED",
       });
+      return mapError(error, reply);
+    }
+  });
+
+  app.get("/api/admin/puzzles/pool-stats", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      return await puzzleService.poolStats(config.DAILY_POOL_WARNING_THRESHOLD);
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.post("/api/admin/corpus", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const parsed = CorpusProcessRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid corpus payload." },
+        });
+      }
+      logger.info("corpus_import_started", {
+        requestId: request.id,
+        total: parsed.data.urls.length,
+      });
+      const result = await dossierService.processCorpus(parsed.data.urls);
+      for (const item of result.items) {
+        if (item.articleStatus === "imported") {
+          logger.info("corpus_article_imported", { requestId: request.id, url: item.url });
+        } else if (item.articleStatus === "failed") {
+          logger.warn("corpus_article_failed", {
+            requestId: request.id,
+            url: item.url,
+            stage: item.stage,
+          });
+        }
+        if (item.puzzleStatus === "generated") {
+          logger.info("corpus_puzzle_generated", { requestId: request.id, puzzleId: item.puzzleId });
+        } else if (item.puzzleStatus === "failed") {
+          logger.warn("corpus_puzzle_failed", {
+            requestId: request.id,
+            url: item.url,
+            stage: item.stage,
+          });
+        }
+      }
+      return result;
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.get("/api/admin/dossiers", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const parsed = DossierListQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier list query." },
+        });
+      }
+      return await dossierService.listAdmin(parsed.data.page, parsed.data.pageSize, parsed.data.q);
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.post("/api/admin/dossiers/seed", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const parsed = DossierSeedRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier seed payload." },
+        });
+      }
+      const result = await dossierService.seed(parsed.data);
+      logger.info("dossier_created", {
+        requestId: request.id,
+        slug: result.slug,
+        created: result.created,
+      });
+      return result;
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.post("/api/admin/dossiers", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const parsed = CreateDossierRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier payload." },
+        });
+      }
+      const created = await dossierService.create(parsed.data);
+      logger.info("dossier_created", { requestId: request.id, dossierId: created.id });
+      return created;
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.get("/api/admin/dossiers/:id", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const parsed = AdminDossierIdParamSchema.safeParse(request.params);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier id." },
+        });
+      }
+      return await dossierService.getAdmin(parsed.data.id);
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.patch("/api/admin/dossiers/:id", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const params = AdminDossierIdParamSchema.safeParse(request.params);
+      const body = UpdateDossierRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier update." },
+        });
+      }
+      const updated = await dossierService.update(params.data.id, body.data);
+      if (body.data.status === "PUBLISHED") {
+        logger.info("dossier_published", { requestId: request.id, dossierId: updated.id });
+      }
+      return updated;
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.post("/api/admin/dossiers/:id/cases", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const params = AdminDossierIdParamSchema.safeParse(request.params);
+      const body = AddDossierCaseRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier case payload." },
+        });
+      }
+      const updated = await dossierService.addCase(params.data.id, body.data);
+      logger.info("dossier_case_added", { requestId: request.id, dossierId: updated.id });
+      return updated;
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.delete("/api/admin/dossiers/:id/cases/:caseId", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const parsed = AdminDossierCaseParamSchema.safeParse(request.params);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier case." },
+        });
+      }
+      return await dossierService.removeCase(parsed.data.id, parsed.data.caseId);
+    } catch (error) {
+      return mapError(error, reply);
+    }
+  });
+
+  app.patch("/api/admin/dossiers/:id/cases/:caseId", async (request, reply) => {
+    try {
+      const sessionId = await ensureSessionId(request, reply);
+      requireAdmin(await identitySessions.findWithUser(sessionId));
+      const params = AdminDossierCaseParamSchema.safeParse(request.params);
+      const body = ReorderDossierCaseRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) {
+        return reply.status(400).send({
+          error: { code: "INVALID_REQUEST", message: "Invalid dossier case reorder." },
+        });
+      }
+      return await dossierService.reorderCase(params.data.id, params.data.caseId, body.data.position);
+    } catch (error) {
       return mapError(error, reply);
     }
   });
@@ -788,14 +1067,21 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
     try {
       const published = await puzzleService.publishToday();
-      logger.info("puzzle_published", {
+      const event =
+        published.status === "PUBLISHED"
+          ? "daily_publish_success"
+          : published.status === "ALREADY_PUBLISHED"
+            ? "daily_publish_already_published"
+            : "daily_publish_no_candidate";
+      logger.info(event, {
         requestId: request.id,
         status: published.status,
         puzzleId: published.puzzleId,
+        date: published.date,
       });
       return published;
     } catch (error) {
-      logger.error("publish_failed", {
+      logger.error("daily_publish_failed", {
         requestId: request.id,
         errorCode: error instanceof AppError ? error.code : "PUBLISH_FAILED",
       });

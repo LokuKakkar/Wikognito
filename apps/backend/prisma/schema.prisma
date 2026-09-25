@@ -128,10 +128,11 @@ model Puzzle {
   createdAt                DateTime     @default(now())
   publishedAt              DateTime?
 
-  article         Article      @relation(fields: [articleId], references: [id])
+  article         Article           @relation(fields: [articleId], references: [id])
   gameResults     GameResult[]
   dailyAssignment DailyPuzzle?
   puzzleStats     PuzzleStats?
+  dossierCases    DossierCaseFile[]
 
   @@index([status, createdAt])
   @@index([articleId, generatorVersion, status])
@@ -151,6 +152,42 @@ enum PuzzleStatus {
   READY
   PUBLISHED
   ARCHIVED
+}
+
+enum DossierStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Dossier {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String        @default("")
+  coverImage  String?
+  status      DossierStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  caseFiles DossierCaseFile[]
+
+  @@index([status])
+}
+
+model DossierCaseFile {
+  id        String   @id @default(cuid())
+  dossierId String
+  puzzleId  String
+  position  Int
+  createdAt DateTime @default(now())
+
+  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  puzzle  Puzzle  @relation(fields: [puzzleId], references: [id], onDelete: Restrict)
+
+  @@unique([dossierId, puzzleId])
+  @@unique([dossierId, position])
+  @@index([puzzleId])
 }
 
 model GameResult {

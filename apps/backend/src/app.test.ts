@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { FastifyInstance } from "fastify";
 import { PrismaClient } from "@prisma/client";
 import { createArticleProvider, WikipediaProviderError } from "@redactle/article-provider";
-import { runIngestionPipeline, persistPipelineResult } from "@redactle/article-ingestion";
+import { runIngestionPipeline, persistPipelineResult, publishDailyPuzzle } from "@redactle/article-ingestion";
 import { REDIS_PUZZLE_TODAY_KEY } from "@redactle/shared";
 import { decodeClientPayload } from "@redactle/puzzle-engine";
 import { loadConfig } from "./infrastructure/config/env.js";
@@ -142,6 +142,7 @@ beforeAll(async () => {
     where: { id: { notIn: ["user-dummy-phase1", "user-local-admin", "user-local-player"] } },
   });
   await prisma.dailyPuzzle.deleteMany({});
+  await prisma.dossierCaseFile.deleteMany({});
   await prisma.puzzle.deleteMany({});
   await getRedis(config).del(`${REDIS_PUZZLE_TODAY_KEY}:${dateStr}`);
 
@@ -177,6 +178,7 @@ afterAll(async () => {
     where: { id: { notIn: ["user-dummy-phase1", "user-local-admin", "user-local-player"] } },
   });
   await prisma.dailyPuzzle.deleteMany({});
+  await prisma.dossierCaseFile.deleteMany({});
   await prisma.puzzle.deleteMany({});
   await prisma.article.deleteMany({ where: { source: "WIKIPEDIA" } });
   await getRedis(config).del(`${REDIS_PUZZLE_TODAY_KEY}:${dateStr}`);
@@ -503,6 +505,21 @@ describe("admin article import API", () => {
     expect(pet.rawContent).toBeUndefined();
     expect(pet.sourceWikitext).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain("small opening");
+
+    const byId = await app.inject({
+      method: "GET",
+      url: `/api/admin/articles?q=${encodeURIComponent(pet.id)}`,
+      cookies: cookies(adminSession),
+    });
+    expect(byId.statusCode).toBe(200);
+    expect(byId.json().items.some((item: { id: string }) => item.id === pet.id)).toBe(true);
+
+    const byTitle = await app.inject({
+      method: "GET",
+      url: "/api/admin/articles?q=Pet%20door",
+      cookies: cookies(adminSession),
+    });
+    expect(byTitle.json().items.some((item: { title: string }) => item.title === "Pet door")).toBe(true);
   });
 });
 
@@ -619,6 +636,21 @@ describe("puzzle pool API", () => {
     expect(body.items[0].status).toBeTruthy();
     expect(JSON.stringify(body)).not.toContain("mathematician");
     expect(body.items[0].rawContent).toBeUndefined();
+
+    const byTitle = await app.inject({
+      method: "GET",
+      url: `/api/admin/puzzles?q=${encodeURIComponent(body.items[0].title)}`,
+      cookies: cookies(adminSession),
+    });
+    expect(byTitle.statusCode).toBe(200);
+    expect(byTitle.json().items.some((item: { title: string }) => item.title === body.items[0].title)).toBe(true);
+
+    const byId = await app.inject({
+      method: "GET",
+      url: `/api/admin/puzzles?q=${encodeURIComponent(body.items[0].id)}`,
+      cookies: cookies(adminSession),
+    });
+    expect(byId.json().items.some((item: { id: string }) => item.id === body.items[0].id)).toBe(true);
   });
 
   it("generate is idempotent for the same article and generator version", async () => {
@@ -1978,4 +2010,315 @@ describe("phase 7 production readiness", () => {
     expect(await prisma.dailyPuzzle.count()).toBe(before);
   });
 });
+
+describe("phase 9 dossiers, corpus, and daily publish", () => {
+  beforeEach(async () => {
+    adminSession = await newSessionCookie();
+    expect((await login(adminSession, "admin")).statusCode).toBe(302);
+    await prisma.dossierCaseFile.deleteMany({ where: { dossier: { slug: { startsWith: "test-dossier" } } } });
+    await prisma.dossier.deleteMany({ where: { slug: { startsWith: "test-dossier" } } });
+    await prisma.gameResult.deleteMany({ where: { puzzleId: { startsWith: "puzzle-dossier-" } } });
+    await prisma.dailyPuzzle.deleteMany({ where: { puzzleId: { startsWith: "puzzle-dossier-" } } });
+    await prisma.puzzle.deleteMany({ where: { id: { startsWith: "puzzle-dossier-" } } });
+    await prisma.article.deleteMany({ where: { id: { startsWith: "article-dossier-" } } });
+  });
+
+  async function createReadyPuzzle(suffix: string, title = `Dossier ${suffix}`) {
+    const source = await prisma.puzzle.findUniqueOrThrow({ where: { id: await todayPuzzleId() } });
+    const sourceArticle = await prisma.article.findUniqueOrThrow({ where: { id: source.articleId } });
+    const articleId = `article-dossier-${suffix}`;
+    const puzzleId = `puzzle-dossier-${suffix}`;
+    await prisma.article.create({
+      data: {
+        id: articleId,
+        externalId: `local:dossier-${suffix}`,
+        title,
+        source: "LOCAL",
+        language: "en",
+        rawContent: sourceArticle.rawContent,
+        wordCount: sourceArticle.wordCount,
+      },
+    });
+    await prisma.puzzle.create({
+      data: {
+        id: puzzleId,
+        articleId,
+        puzzleNumber: 0,
+        generatorVersion: source.generatorVersion,
+        clientPuzzleData: {
+          ...(source.clientPuzzleData as Record<string, unknown>),
+          id: puzzleId,
+          puzzleNumber: 0,
+        },
+        status: "READY",
+        title,
+        titleMatchKey: source.titleMatchKey,
+        wordCount: source.wordCount,
+        guessableWordCount: source.guessableWordCount,
+        uniqueGuessableWordCount: source.uniqueGuessableWordCount,
+        titleTokenCount: source.titleTokenCount,
+      },
+    });
+    return { articleId, puzzleId };
+  }
+
+  it("hides draft and archived dossiers from the public list", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/admin/dossiers",
+      cookies: cookies(adminSession),
+      payload: { slug: "test-dossier-draft", title: "Draft Folder", description: "hidden" },
+    });
+    expect(created.statusCode).toBe(200);
+    const publicList = await app.inject({ method: "GET", url: "/api/dossiers" });
+    expect(publicList.statusCode).toBe(200);
+    expect(publicList.json().items.some((item: { slug: string }) => item.slug === "test-dossier-draft")).toBe(false);
+
+    const published = await app.inject({
+      method: "PATCH",
+      url: `/api/admin/dossiers/${created.json().id}`,
+      cookies: cookies(adminSession),
+      payload: { status: "PUBLISHED" },
+    });
+    expect(published.statusCode).toBe(200);
+    const afterPublish = await app.inject({ method: "GET", url: "/api/dossiers" });
+    expect(afterPublish.json().items.some((item: { slug: string }) => item.slug === "test-dossier-draft")).toBe(true);
+
+    await app.inject({
+      method: "PATCH",
+      url: `/api/admin/dossiers/${created.json().id}`,
+      cookies: cookies(adminSession),
+      payload: { status: "ARCHIVED" },
+    });
+    const afterArchive = await app.inject({ method: "GET", url: "/api/dossiers" });
+    expect(afterArchive.json().items.some((item: { slug: string }) => item.slug === "test-dossier-draft")).toBe(false);
+  });
+
+  it("searches and paginates public and admin dossier lists", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/admin/dossiers",
+      cookies: cookies(adminSession),
+      payload: { slug: "test-dossier-search", title: "Searchable Folder", description: "find me" },
+    });
+    expect(created.statusCode).toBe(200);
+    const id = created.json().id as string;
+    await app.inject({
+      method: "PATCH",
+      url: `/api/admin/dossiers/${id}`,
+      cookies: cookies(adminSession),
+      payload: { status: "PUBLISHED" },
+    });
+
+    const byName = await app.inject({ method: "GET", url: "/api/dossiers?q=Searchable" });
+    expect(byName.statusCode).toBe(200);
+    expect(byName.json().page).toBe(1);
+    expect(byName.json().items.some((item: { slug: string }) => item.slug === "test-dossier-search")).toBe(true);
+
+    const byId = await app.inject({
+      method: "GET",
+      url: `/api/admin/dossiers?q=${encodeURIComponent(id)}`,
+      cookies: cookies(adminSession),
+    });
+    expect(byId.statusCode).toBe(200);
+    expect(byId.json().items.some((item: { id: string }) => item.id === id)).toBe(true);
+
+    const paged = await app.inject({
+      method: "GET",
+      url: "/api/admin/dossiers?page=1&pageSize=1",
+      cookies: cookies(adminSession),
+    });
+    expect(paged.json().items).toHaveLength(1);
+    expect(paged.json().pageSize).toBe(1);
+    expect(paged.json().total).toBeGreaterThanOrEqual(1);
+  });
+
+  it("adds ordered case files and prevents duplicates", async () => {
+    const first = await createReadyPuzzle("alpha", "Alpha");
+    const second = await createReadyPuzzle("beta", "Beta");
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/admin/dossiers",
+      cookies: cookies(adminSession),
+      payload: { slug: "test-dossier-order", title: "Order" },
+    });
+    const id = created.json().id as string;
+    const addFirst = await app.inject({
+      method: "POST",
+      url: `/api/admin/dossiers/${id}/cases`,
+      cookies: cookies(adminSession),
+      payload: { puzzleId: first.puzzleId },
+    });
+    expect(addFirst.statusCode).toBe(200);
+    expect(addFirst.json().cases[0].position).toBe(1);
+    const addSecond = await app.inject({
+      method: "POST",
+      url: `/api/admin/dossiers/${id}/cases`,
+      cookies: cookies(adminSession),
+      payload: { articleId: second.articleId },
+    });
+    expect(addSecond.json().cases.map((item: { title: string }) => item.title)).toEqual(["Alpha", "Beta"]);
+    const duplicate = await app.inject({
+      method: "POST",
+      url: `/api/admin/dossiers/${id}/cases`,
+      cookies: cookies(adminSession),
+      payload: { puzzleId: first.puzzleId },
+    });
+    expect(duplicate.statusCode).toBe(409);
+    const player = await newSessionCookie();
+    expect((await login(player, "user")).statusCode).toBe(302);
+    const forbidden = await app.inject({
+      method: "POST",
+      url: "/api/admin/dossiers",
+      cookies: cookies(player),
+      payload: { slug: "test-dossier-forbidden", title: "Nope" },
+    });
+    expect(forbidden.statusCode).toBe(403);
+  });
+
+  it("serves published case payloads without hidden article content and records official progress", async () => {
+    const ready = await createReadyPuzzle("play", "Playable Case");
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/admin/dossiers",
+      cookies: cookies(adminSession),
+      payload: { slug: "test-dossier-play", title: "Playable", description: "A folder." },
+    });
+    const dossierId = created.json().id as string;
+    await app.inject({
+      method: "POST",
+      url: `/api/admin/dossiers/${dossierId}/cases`,
+      cookies: cookies(adminSession),
+      payload: { puzzleId: ready.puzzleId },
+    });
+    await app.inject({
+      method: "PATCH",
+      url: `/api/admin/dossiers/${dossierId}`,
+      cookies: cookies(adminSession),
+      payload: { status: "PUBLISHED" },
+    });
+
+    const anon = await newSessionCookie();
+    const detail = await app.inject({
+      method: "GET",
+      url: "/api/dossiers/test-dossier-play",
+      cookies: cookies(anon),
+    });
+    expect(detail.statusCode).toBe(200);
+    expect(JSON.stringify(detail.json())).not.toContain("mathematician");
+    expect(detail.json().cases[0].playState).toBe("UNSOLVED");
+    expect(detail.json().cases[0].title).toBeNull();
+    expect(detail.json().cases[0].titleWordLengths.length).toBeGreaterThan(0);
+    const caseId = detail.json().cases[0].id as string;
+
+    const payload = await app.inject({
+      method: "GET",
+      url: `/api/dossiers/test-dossier-play/cases/${caseId}`,
+      cookies: cookies(anon),
+    });
+    expect(payload.statusCode).toBe(200);
+    expect(payload.json().rawContent).toBeUndefined();
+    expect(payload.json().content).toBeUndefined();
+    expect(JSON.stringify(payload.json())).not.toContain("mathematician");
+
+    const win = await app.inject({
+      method: "POST",
+      url: "/api/games/complete",
+      cookies: cookies(anon),
+      payload: {
+        puzzleId: ready.puzzleId,
+        attemptId: "dossier-official",
+        status: "WON",
+        guesses: ["ada", "lovelace"],
+        startedAt: Date.now() - 4000,
+        completedAt: Date.now(),
+      },
+    });
+    expect(win.statusCode).toBe(200);
+    expect(win.json().isOfficial).toBe(true);
+    expect(win.json().source).toBe("ARCHIVE");
+
+    const replay = await app.inject({
+      method: "POST",
+      url: "/api/games/complete",
+      cookies: cookies(anon),
+      payload: {
+        puzzleId: ready.puzzleId,
+        attemptId: "dossier-replay",
+        status: "GAVE_UP",
+        guesses: ["ada"],
+        startedAt: Date.now() - 1000,
+        completedAt: Date.now(),
+      },
+    });
+    expect(replay.json().isOfficial).toBe(false);
+
+    const after = await app.inject({
+      method: "GET",
+      url: "/api/dossiers/test-dossier-play",
+      cookies: cookies(anon),
+    });
+    expect(after.json().cases[0].playState).toBe("SOLVED");
+    expect(after.json().cases[0].title).toBeTruthy();
+    expect(after.json().closed).toBe(true);
+  });
+
+  it("enforces unique dossier slugs and case files at the database", async () => {
+    await prisma.dossier.create({
+      data: { slug: "test-dossier-unique", title: "Unique" },
+    });
+    await expect(
+      prisma.dossier.create({ data: { slug: "test-dossier-unique", title: "Copy" } }),
+    ).rejects.toMatchObject({ code: "P2002" });
+
+    const ready = await createReadyPuzzle("unique");
+    const dossier = await prisma.dossier.findUniqueOrThrow({ where: { slug: "test-dossier-unique" } });
+    await prisma.dossierCaseFile.create({
+      data: { dossierId: dossier.id, puzzleId: ready.puzzleId, position: 1 },
+    });
+    await expect(
+      prisma.dossierCaseFile.create({
+        data: { dossierId: dossier.id, puzzleId: ready.puzzleId, position: 2 },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+  });
+
+  it("publishes a random unused READY puzzle, skips invalid candidates, and fails safely", async () => {
+    const _valid = await createReadyPuzzle("valid", "Valid Ready");
+    const invalid = await createReadyPuzzle("invalid", "Invalid Ready");
+    void _valid;
+    await prisma.puzzle.update({
+      where: { id: invalid.puzzleId },
+      data: { clientPuzzleData: { id: invalid.puzzleId, payload: "not-valid" } },
+    });
+    const future = new Date("2031-01-15T00:00:00.000Z");
+    const first = await publishDailyPuzzle({ prisma, date: future });
+    expect(first.status).toBe("PUBLISHED");
+    expect(first.puzzleId).not.toBe(invalid.puzzleId);
+    const second = await publishDailyPuzzle({ prisma, date: future });
+    expect(second.status).toBe("ALREADY_PUBLISHED");
+    expect(second.puzzleId).toBe(first.puzzleId);
+    expect((await prisma.puzzle.findUniqueOrThrow({ where: { id: invalid.puzzleId } })).status).toBe("READY");
+
+    await prisma.puzzle.update({
+      where: { id: invalid.puzzleId },
+      data: { status: "ARCHIVED" },
+    });
+    const emptyDate = new Date("2031-01-16T00:00:00.000Z");
+    const remaining = await prisma.puzzle.count({
+      where: {
+        status: "READY",
+        article: { puzzles: { none: { status: "PUBLISHED" } } },
+      },
+    });
+    const none = await publishDailyPuzzle({ prisma, date: emptyDate });
+    if (remaining === 0) {
+      expect(none.status).toBe("NO_CANDIDATE");
+      expect(await prisma.dailyPuzzle.findUnique({ where: { date: emptyDate } })).toBeNull();
+    } else {
+      expect(["PUBLISHED", "NO_CANDIDATE"]).toContain(none.status);
+    }
+  });
+});
+
 

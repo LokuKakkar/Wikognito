@@ -5,7 +5,13 @@ import { createDummyClientPuzzle } from "@redactle/test-utils";
 import { LOCAL_STORAGE_ADMIN_PLAY_KEY, LOCAL_STORAGE_GAME_KEY } from "@redactle/shared";
 import { GamePage } from "../components/GamePage";
 import { AdminPlayPickerPage } from "../components/admin/AdminPlayPickerPage";
-import { completeGame, fetchCurrentSession, fetchStats, fetchTodayPuzzle } from "@/lib/api";
+import {
+  completeGame,
+  fetchAdminArticles,
+  fetchCurrentSession,
+  fetchStats,
+  fetchTodayPuzzle,
+} from "@/lib/api";
 
 const puzzle = createDummyClientPuzzle({
   puzzleId: "admin-play-article-pet",
@@ -84,6 +90,12 @@ describe("AdminPlayPickerPage", () => {
       "href",
       "/admin/play/article-pet",
     );
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Search articles"), "article-pet");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => {
+      expect(fetchAdminArticles).toHaveBeenCalledWith(1, 20, "article-pet");
+    });
   });
 
   it("navigates when an article id is submitted", async () => {

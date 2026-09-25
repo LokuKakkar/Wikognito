@@ -8,7 +8,10 @@ import {
   fetchAdminArticles,
   importWikipediaArticle,
 } from "@/lib/api";
+import { ListPager, ListSearch } from "../list/ListControls";
 import { AdminNav } from "./AdminNav";
+
+const PAGE_SIZE = 20;
 
 export function ArticleImportPage() {
   const [url, setUrl] = useState("");
@@ -17,11 +20,17 @@ export function ArticleImportPage() {
   const [error, setError] = useState<string | null>(null);
   const [articles, setArticles] = useState<ArticleSummary[]>([]);
   const [listError, setListError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [query, setQuery] = useState("");
 
-  async function loadList(): Promise<void> {
+  async function loadList(nextPage = page, nextQuery = query): Promise<void> {
     try {
-      const data = await fetchAdminArticles();
+      const data = await fetchAdminArticles(nextPage, PAGE_SIZE, nextQuery || undefined);
       setArticles(data.items);
+      setPage(data.page);
+      setTotal(data.total);
       setListError(null);
     } catch {
       setListError("Could not load imported articles.");
@@ -29,8 +38,8 @@ export function ArticleImportPage() {
   }
 
   useEffect(() => {
-    void loadList();
-  }, []);
+    void loadList(page, query);
+  }, [page, query]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -44,7 +53,10 @@ export function ArticleImportPage() {
     try {
       const imported = await importWikipediaArticle(url.trim());
       setResult(imported);
-      await loadList();
+      setPage(1);
+      setQuery("");
+      setSearchInput("");
+      await loadList(1, "");
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === "VALIDATION_ERROR") {
         setError("Please enter a valid Wikipedia article URL.");
@@ -103,9 +115,20 @@ export function ArticleImportPage() {
 
       <section>
         <h2>Imported articles</h2>
+        <ListSearch
+          id="article-search"
+          label="Search articles"
+          value={searchInput}
+          onChange={setSearchInput}
+          onSubmit={() => {
+            setPage(1);
+            setQuery(searchInput.trim());
+          }}
+          placeholder="Search by name or ID"
+        />
         {listError ? <p className="error">{listError}</p> : null}
         {articles.length === 0 && !listError ? (
-          <p className="muted">No articles imported yet.</p>
+          <p className="muted">{query ? "No articles match this search." : "No articles imported yet."}</p>
         ) : (
           <div className="admin-table-wrap">
             <table className="admin-article-table">
@@ -143,6 +166,7 @@ export function ArticleImportPage() {
             </table>
           </div>
         )}
+        <ListPager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
       </section>
     </main>
   );

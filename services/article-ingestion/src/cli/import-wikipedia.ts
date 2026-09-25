@@ -65,6 +65,8 @@ async function main(): Promise<void> {
   const provider = new WikipediaArticleProvider({
     apiUrl: process.env.WIKIPEDIA_API_URL,
     userAgent: process.env.WIKIPEDIA_USER_AGENT,
+    timeoutMs: Number(process.env.WIKIPEDIA_TIMEOUT_MS ?? 60_000),
+    maxRetries: Number(process.env.WIKIPEDIA_MAX_RETRIES ?? 5),
   });
 
   let imported = 0;

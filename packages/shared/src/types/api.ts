@@ -188,8 +188,16 @@ export type ImportArticleResponse = z.infer<typeof ImportArticleResponseSchema>;
 export const ArticleListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
+  q: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((value) => (value ? value : undefined)),
 });
 export type ArticleListQuery = z.infer<typeof ArticleListQuerySchema>;
+export const DossierListQuerySchema = ArticleListQuerySchema;
+export type DossierListQuery = ArticleListQuery;
 
 export const AdminArticlePlayParamSchema = z.object({
   articleId: z.string().min(1),
@@ -221,11 +229,8 @@ export const PuzzleSummarySchema = z.object({
 });
 export type PuzzleSummary = z.infer<typeof PuzzleSummarySchema>;
 
-export const PuzzleListQuerySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
-export type PuzzleListQuery = z.infer<typeof PuzzleListQuerySchema>;
+export const PuzzleListQuerySchema = ArticleListQuerySchema;
+export type PuzzleListQuery = ArticleListQuery;
 
 export const PuzzleListResponseSchema = z.object({
   items: z.array(PuzzleSummarySchema),
@@ -266,13 +271,237 @@ export const ValidatePuzzlesResponseSchema = z.object({
 export type ValidatePuzzlesResponse = z.infer<typeof ValidatePuzzlesResponseSchema>;
 
 export const PublishTodayResponseSchema = z.object({
-  status: z.enum(["PUBLISHED", "ALREADY_PUBLISHED"]),
+  status: z.enum(["PUBLISHED", "ALREADY_PUBLISHED", "NO_CANDIDATE"]),
   date: z.string(),
-  puzzleId: z.string(),
-  puzzleNumber: z.number().int(),
-  title: z.string(),
+  puzzleId: z.string().optional(),
+  puzzleNumber: z.number().int().optional(),
+  title: z.string().optional(),
 });
 export type PublishTodayResponse = z.infer<typeof PublishTodayResponseSchema>;
+
+export const DossierStatusSchema = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
+export type DossierStatus = z.infer<typeof DossierStatusSchema>;
+
+export const DossierPlayStateSchema = z.enum(["SOLVED", "UNSOLVED"]);
+export type DossierPlayState = z.infer<typeof DossierPlayStateSchema>;
+
+export const DossierListItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  description: z.string(),
+  coverImage: z.string().nullable(),
+  caseCount: z.number().int(),
+});
+export type DossierListItem = z.infer<typeof DossierListItemSchema>;
+
+export const DossierListResponseSchema = z.object({
+  items: z.array(DossierListItemSchema),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  total: z.number().int(),
+});
+export type DossierListResponse = z.infer<typeof DossierListResponseSchema>;
+
+export const DossierCaseFileSchema = z.object({
+  id: z.string(),
+  position: z.number().int(),
+  title: z.string().nullable(),
+  titleWordLengths: z.array(z.number().int().positive()),
+  puzzleId: z.string(),
+  playState: DossierPlayStateSchema,
+});
+export type DossierCaseFile = z.infer<typeof DossierCaseFileSchema>;
+
+export const DossierDetailSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  description: z.string(),
+  coverImage: z.string().nullable(),
+  status: DossierStatusSchema,
+  caseCount: z.number().int(),
+  solvedCount: z.number().int(),
+  closed: z.boolean(),
+  cases: z.array(DossierCaseFileSchema),
+});
+export type DossierDetail = z.infer<typeof DossierDetailSchema>;
+
+export const DossierSlugParamSchema = z.object({
+  slug: z.string().min(1),
+});
+export type DossierSlugParam = z.infer<typeof DossierSlugParamSchema>;
+
+export const DossierCaseParamSchema = z.object({
+  slug: z.string().min(1),
+  caseId: z.string().min(1),
+});
+export type DossierCaseParam = z.infer<typeof DossierCaseParamSchema>;
+
+export const CreateDossierRequestSchema = z.object({
+  slug: z.string().trim().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1000).optional().default(""),
+  coverImage: z.string().trim().max(500).nullable().optional(),
+});
+export type CreateDossierRequest = z.infer<typeof CreateDossierRequestSchema>;
+
+export const UpdateDossierRequestSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(1000).optional(),
+  coverImage: z.string().trim().max(500).nullable().optional(),
+  status: DossierStatusSchema.optional(),
+});
+export type UpdateDossierRequest = z.infer<typeof UpdateDossierRequestSchema>;
+
+export const AddDossierCaseRequestSchema = z
+  .object({
+    puzzleId: z.string().min(1).optional(),
+    articleId: z.string().min(1).optional(),
+  })
+  .refine((value) => Boolean(value.puzzleId || value.articleId), {
+    message: "puzzleId or articleId is required.",
+  });
+export type AddDossierCaseRequest = z.infer<typeof AddDossierCaseRequestSchema>;
+
+export const ReorderDossierCaseRequestSchema = z.object({
+  position: z.number().int().positive(),
+});
+export type ReorderDossierCaseRequest = z.infer<typeof ReorderDossierCaseRequestSchema>;
+
+export const AdminDossierIdParamSchema = z.object({
+  id: z.string().min(1),
+});
+export type AdminDossierIdParam = z.infer<typeof AdminDossierIdParamSchema>;
+
+export const AdminDossierCaseParamSchema = z.object({
+  id: z.string().min(1),
+  caseId: z.string().min(1),
+});
+export type AdminDossierCaseParam = z.infer<typeof AdminDossierCaseParamSchema>;
+
+export const AdminDossierSummarySchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  description: z.string(),
+  coverImage: z.string().nullable(),
+  status: DossierStatusSchema,
+  caseCount: z.number().int(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type AdminDossierSummary = z.infer<typeof AdminDossierSummarySchema>;
+
+export const AdminDossierListResponseSchema = z.object({
+  items: z.array(AdminDossierSummarySchema),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  total: z.number().int(),
+});
+export type AdminDossierListResponse = z.infer<typeof AdminDossierListResponseSchema>;
+
+export const AdminDossierCaseSchema = z.object({
+  id: z.string(),
+  position: z.number().int(),
+  puzzleId: z.string(),
+  articleId: z.string(),
+  title: z.string(),
+  puzzleStatus: z.enum(["DRAFT", "READY", "PUBLISHED", "ARCHIVED"]),
+});
+export type AdminDossierCase = z.infer<typeof AdminDossierCaseSchema>;
+
+export const AdminDossierDetailSchema = AdminDossierSummarySchema.extend({
+  cases: z.array(AdminDossierCaseSchema),
+});
+export type AdminDossierDetail = z.infer<typeof AdminDossierDetailSchema>;
+
+export const CorpusProcessRequestSchema = z.object({
+  urls: z.array(z.string().min(1)).min(1).max(50),
+});
+export type CorpusProcessRequest = z.infer<typeof CorpusProcessRequestSchema>;
+
+export const CorpusItemResultSchema = z.object({
+  url: z.string(),
+  title: z.string().optional(),
+  articleId: z.string().optional(),
+  puzzleId: z.string().optional(),
+  articleStatus: z.enum(["imported", "already_exists", "failed"]),
+  puzzleStatus: z.enum(["generated", "already_exists", "failed", "skipped"]),
+  stage: z
+    .enum([
+      "NORMALIZATION",
+      "WIKIPEDIA_FETCH",
+      "PERSIST_ARTICLE",
+      "GENERATE_PUZZLE",
+      "VALIDATE_PUZZLE",
+      "DOSSIER_LINK",
+    ])
+    .optional(),
+  error: z.string().optional(),
+});
+export type CorpusItemResult = z.infer<typeof CorpusItemResultSchema>;
+
+export const CorpusProcessResponseSchema = z.object({
+  total: z.number().int(),
+  imported: z.number().int(),
+  alreadyExisting: z.number().int(),
+  puzzlesGenerated: z.number().int(),
+  puzzlesAlreadyExisting: z.number().int(),
+  failed: z.number().int(),
+  items: z.array(CorpusItemResultSchema),
+});
+export type CorpusProcessResponse = z.infer<typeof CorpusProcessResponseSchema>;
+
+export const DossierSeedRequestSchema = z.object({
+  slug: z.string().trim().min(1).max(80),
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1000).optional(),
+  coverImage: z.string().trim().max(500).nullable().optional(),
+  status: DossierStatusSchema.optional(),
+  articles: z.array(z.string().min(1)).min(1).max(50),
+});
+export type DossierSeedRequest = z.infer<typeof DossierSeedRequestSchema>;
+
+export const DossierSeedResponseSchema = z.object({
+  dossierId: z.string(),
+  slug: z.string(),
+  created: z.boolean(),
+  casesAdded: z.number().int(),
+  casesAlreadyExisting: z.number().int(),
+  corpus: CorpusProcessResponseSchema,
+  failed: z.array(
+    z.object({
+      url: z.string(),
+      stage: z.string(),
+      error: z.string(),
+    }),
+  ),
+});
+export type DossierSeedResponse = z.infer<typeof DossierSeedResponseSchema>;
+
+export const PuzzlePoolStatsSchema = z.object({
+  readyUnused: z.number().int(),
+  usedInDaily: z.number().int(),
+  dossierLinked: z.number().int(),
+  oldestReady: z
+    .object({
+      id: z.string(),
+      title: z.string(),
+      createdAt: z.string(),
+    })
+    .nullable(),
+  newestReady: z
+    .object({
+      id: z.string(),
+      title: z.string(),
+      createdAt: z.string(),
+    })
+    .nullable(),
+  warningThreshold: z.number().int(),
+  lowPool: z.boolean(),
+});
+export type PuzzlePoolStats = z.infer<typeof PuzzlePoolStatsSchema>;
 
 export const ArchivePlayStateSchema = z.enum(["UNPLAYED", "COMPLETED"]);
 export type ArchivePlayState = z.infer<typeof ArchivePlayStateSchema>;
@@ -316,6 +545,11 @@ export const ArchivePuzzleResponseSchema = PublicPuzzleDtoSchema.extend({
   officialResult: OfficialResultSummarySchema.nullable(),
 });
 export type ArchivePuzzleResponse = z.infer<typeof ArchivePuzzleResponseSchema>;
+
+export const DossierCasePuzzleResponseSchema = PublicPuzzleDtoSchema.extend({
+  officialResult: OfficialResultSummarySchema.nullable(),
+});
+export type DossierCasePuzzleResponse = z.infer<typeof DossierCasePuzzleResponseSchema>;
 
 export const HistoryItemSchema = z.object({
   puzzleId: z.string(),

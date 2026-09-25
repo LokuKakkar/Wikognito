@@ -475,7 +475,7 @@ Re-validate persisted compact payloads (decode + simulated title win). Does not 
 
 ## POST `/api/admin/puzzles/publish-today`
 
-Idempotent daily publish: if `DailyPuzzle` exists for UTC today, return it; otherwise select the oldest READY puzzle whose article is unused and assign it.
+Idempotent daily publish: if `DailyPuzzle` exists for UTC today, return it; otherwise select a **random** unused READY puzzle, re-validate it, skip invalids, and assign it.
 
 **Response `200`**
 
@@ -489,7 +489,27 @@ Idempotent daily publish: if `DailyPuzzle` exists for UTC today, return it; othe
 }
 ```
 
-Second call returns `"status": "ALREADY_PUBLISHED"` with the same assignment.
+`status` is `PUBLISHED`, `ALREADY_PUBLISHED`, or `NO_CANDIDATE`.
+
+---
+
+## GET `/api/dossiers`
+
+Published dossiers only. Metadata + `caseCount`. No puzzle payloads.
+
+## GET `/api/dossiers/:slug`
+
+Case files: `id`, `position`, `title`, `puzzleId`, `playState` (`SOLVED` / `UNSOLVED` from official wins). No article plaintext.
+
+## GET `/api/dossiers/:slug/cases/:caseId`
+
+Same opaque public puzzle DTO + `officialResult` as archive. 404 unless the dossier is `PUBLISHED`.
+
+## Admin dossiers and corpus
+
+`/api/admin/dossiers*` and `POST /api/admin/corpus` require `role = ADMIN`.
+
+`GET /api/admin/puzzles/pool-stats` returns unused READY / used-in-daily / dossier-linked counts and `lowPool`.
 
 ---
 

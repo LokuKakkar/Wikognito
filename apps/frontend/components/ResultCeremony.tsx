@@ -19,6 +19,8 @@ interface ResultCeremonyProps {
   showShare?: boolean;
   onReplay?: () => void;
   onShare?: () => void;
+  nextHref?: string;
+  nextLabel?: string;
 }
 
 export function ResultCeremony({
@@ -33,6 +35,8 @@ export function ResultCeremony({
   showShare = true,
   onReplay,
   onShare,
+  nextHref,
+  nextLabel = "Next case",
 }: ResultCeremonyProps) {
   const won = status === "WON";
   const [shownScore, setShownScore] = useState(0);
@@ -81,6 +85,11 @@ export function ResultCeremony({
       ) : null}
       {currentStreak != null && currentStreak > 0 ? <p className="muted">Streak {currentStreak}</p> : null}
       <div className="terminal-actions">
+        {nextHref ? (
+          <Link className="replay" href={nextHref}>
+            {nextLabel}
+          </Link>
+        ) : null}
         {showShare && onShare ? (
           <button type="button" className="replay" onClick={onShare}>
             <Icon icon={Share2} />

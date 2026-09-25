@@ -26,6 +26,8 @@
     "puzzles:generate": "pnpm --filter @redactle/article-ingestion puzzles:generate --",
     "puzzles:validate": "pnpm --filter @redactle/article-ingestion puzzles:validate",
     "puzzles:publish-today": "pnpm --filter @redactle/article-ingestion puzzles:publish-today",
+    "corpus:process": "pnpm --filter @redactle/article-ingestion corpus:process --",
+    "dossiers:seed": "pnpm --filter @redactle/article-ingestion dossiers:seed --",
     "test": "pnpm -r --if-present test",
     "test:watch": "pnpm -r --if-present test:watch",
     "test:puzzle-engine": "pnpm --filter @redactle/puzzle-engine test",

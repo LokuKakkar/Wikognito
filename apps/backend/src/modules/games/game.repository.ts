@@ -96,6 +96,24 @@ export class GameRepository {
     return rows.map((row) => row.puzzleId);
   }
 
+  async findOfficialWonPuzzleIdsForUser(userId: string, puzzleIds: string[]): Promise<string[]> {
+    if (puzzleIds.length === 0) return [];
+    const rows = await this.prisma.gameResult.findMany({
+      where: { userId, puzzleId: { in: puzzleIds }, isOfficial: true, won: true },
+      select: { puzzleId: true },
+    });
+    return rows.map((row) => row.puzzleId);
+  }
+
+  async findOfficialWonPuzzleIdsForSession(sessionId: string, puzzleIds: string[]): Promise<string[]> {
+    if (puzzleIds.length === 0) return [];
+    const rows = await this.prisma.gameResult.findMany({
+      where: { sessionId, puzzleId: { in: puzzleIds }, isOfficial: true, won: true },
+      select: { puzzleId: true },
+    });
+    return rows.map((row) => row.puzzleId);
+  }
+
   async countAttemptsForSessionPuzzle(sessionId: string, puzzleId: string): Promise<number> {
     return this.prisma.gameResult.count({
       where: { sessionId, puzzleId },

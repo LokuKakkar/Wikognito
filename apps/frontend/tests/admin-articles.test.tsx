@@ -141,4 +141,18 @@ describe("ArticleImportPage", () => {
     );
     expect(fetchAdminArticles).toHaveBeenCalled();
   });
+
+  it("searches imported articles by name or id", async () => {
+    const user = userEvent.setup();
+    fetchAdminArticles
+      .mockResolvedValueOnce({ items: [PET_ARTICLE], page: 1, pageSize: 20, total: 1 })
+      .mockResolvedValueOnce({ items: [PET_ARTICLE], page: 1, pageSize: 20, total: 1 });
+    render(<ArticleImportPage />);
+    expect(await screen.findByText("Pet door")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Search articles"), "article-pet");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => {
+      expect(fetchAdminArticles).toHaveBeenCalledWith(1, 20, "article-pet");
+    });
+  });
 });

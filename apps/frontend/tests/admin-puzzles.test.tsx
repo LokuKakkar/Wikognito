@@ -7,6 +7,7 @@ const fetchAdminPuzzles = vi.fn();
 const generateAdminPuzzle = vi.fn();
 const validateAdminPuzzles = vi.fn();
 const publishTodayPuzzle = vi.fn();
+const fetchPuzzlePoolStats = vi.fn();
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
@@ -16,6 +17,7 @@ vi.mock("@/lib/api", async () => {
     generateAdminPuzzle: (...args: unknown[]) => generateAdminPuzzle(...args),
     validateAdminPuzzles: (...args: unknown[]) => validateAdminPuzzles(...args),
     publishTodayPuzzle: (...args: unknown[]) => publishTodayPuzzle(...args),
+    fetchPuzzlePoolStats: (...args: unknown[]) => fetchPuzzlePoolStats(...args),
   };
 });
 
@@ -25,6 +27,16 @@ describe("AdminPuzzlesPage", () => {
     generateAdminPuzzle.mockReset();
     validateAdminPuzzles.mockReset();
     publishTodayPuzzle.mockReset();
+    fetchPuzzlePoolStats.mockReset();
+    fetchPuzzlePoolStats.mockResolvedValue({
+      readyUnused: 12,
+      usedInDaily: 4,
+      dossierLinked: 3,
+      oldestReady: null,
+      newestReady: null,
+      warningThreshold: 7,
+      lowPool: false,
+    });
     fetchAdminPuzzles.mockResolvedValue({
       items: [
         {
@@ -65,5 +77,16 @@ describe("AdminPuzzlesPage", () => {
       expect(generateAdminPuzzle).toHaveBeenCalledWith("article-ada-lovelace", false);
     });
     expect(await screen.findByText(/Puzzle generated successfully/i)).toBeInTheDocument();
+  });
+
+  it("searches puzzles by name or id", async () => {
+    const user = userEvent.setup();
+    render(<AdminPuzzlesPage />);
+    expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Search puzzles"), "puzzle-1");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => {
+      expect(fetchAdminPuzzles).toHaveBeenCalledWith(1, 20, "puzzle-1");
+    });
   });
 });

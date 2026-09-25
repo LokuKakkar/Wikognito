@@ -24,7 +24,9 @@
     "articles:restore": "tsx src/cli/restore-articles.ts",
     "puzzles:generate": "tsx src/cli/generate-puzzles.ts",
     "puzzles:validate": "tsx src/cli/validate-puzzles.ts",
-    "puzzles:publish-today": "tsx src/cli/publish-today.ts"
+    "puzzles:publish-today": "tsx src/cli/publish-today.ts",
+    "corpus:process": "tsx src/cli/process-corpus.ts",
+    "dossiers:seed": "tsx src/cli/seed-dossier.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.13.0",

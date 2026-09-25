@@ -5,16 +5,21 @@ import Link from "next/link";
 import type {
   GeneratePuzzleResponse,
   PublishTodayResponse,
+  PuzzlePoolStats,
   PuzzleSummary,
   ValidatePuzzlesResponse,
 } from "@redactle/shared";
 import {
   fetchAdminPuzzles,
+  fetchPuzzlePoolStats,
   generateAdminPuzzle,
   publishTodayPuzzle,
   validateAdminPuzzles,
 } from "@/lib/api";
+import { ListPager, ListSearch } from "../list/ListControls";
 import { AdminNav } from "./AdminNav";
+
+const PAGE_SIZE = 20;
 
 export function AdminPuzzlesPage() {
   const [puzzles, setPuzzles] = useState<PuzzleSummary[]>([]);
@@ -27,11 +32,22 @@ export function AdminPuzzlesPage() {
   const [generateResult, setGenerateResult] = useState<GeneratePuzzleResponse | null>(null);
   const [publishResult, setPublishResult] = useState<PublishTodayResponse | null>(null);
   const [validateResult, setValidateResult] = useState<ValidatePuzzlesResponse | null>(null);
+  const [pool, setPool] = useState<PuzzlePoolStats | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [query, setQuery] = useState("");
 
-  async function loadList(): Promise<void> {
+  async function loadList(nextPage = page, nextQuery = query): Promise<void> {
     try {
-      const data = await fetchAdminPuzzles();
+      const [data, stats] = await Promise.all([
+        fetchAdminPuzzles(nextPage, PAGE_SIZE, nextQuery || undefined),
+        fetchPuzzlePoolStats(),
+      ]);
       setPuzzles(data.items);
+      setPage(data.page);
+      setTotal(data.total);
+      setPool(stats);
       setListError(null);
     } catch {
       setListError("Could not load puzzles.");
@@ -39,8 +55,8 @@ export function AdminPuzzlesPage() {
   }
 
   useEffect(() => {
-    void loadList();
-  }, []);
+    void loadList(page, query);
+  }, [page, query]);
 
   async function onGenerate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -99,7 +115,9 @@ export function AdminPuzzlesPage() {
       setMessage(
         result.status === "ALREADY_PUBLISHED"
           ? `Already published: Puzzle #${result.puzzleNumber}`
-          : `Published Puzzle #${result.puzzleNumber} for ${result.date}`,
+          : result.status === "NO_CANDIDATE"
+            ? `No eligible READY puzzle for ${result.date}. DailyPuzzle was not changed.`
+            : `Published Puzzle #${result.puzzleNumber} for ${result.date}`,
       );
       await loadList();
     } catch (err) {
@@ -116,6 +134,14 @@ export function AdminPuzzlesPage() {
         <h1>Puzzle Pool</h1>
         <p className="muted">Generate, validate, and publish daily puzzles from stored articles.</p>
       </header>
+      {pool ? (
+        <p className={pool.lowPool ? "error" : "muted"}>
+          READY unused daily pool: {pool.readyUnused}
+          {pool.lowPool
+            ? ` — DAILY POOL LOW. Only ${pool.readyUnused} unused puzzles remain (threshold ${pool.warningThreshold}).`
+            : ` · Used in daily: ${pool.usedInDaily} · Dossier-linked: ${pool.dossierLinked}`}
+        </p>
+      ) : null}
 
       <form className="admin-import-form" onSubmit={(event) => void onGenerate(event)}>
         <label className="sr-only" htmlFor="article-id">
@@ -173,9 +199,20 @@ export function AdminPuzzlesPage() {
 
       <section>
         <h2>Puzzles</h2>
+        <ListSearch
+          id="puzzle-search"
+          label="Search puzzles"
+          value={searchInput}
+          onChange={setSearchInput}
+          onSubmit={() => {
+            setPage(1);
+            setQuery(searchInput.trim());
+          }}
+          placeholder="Search by name or ID"
+        />
         {listError ? <p className="error">{listError}</p> : null}
         {puzzles.length === 0 && !listError ? (
-          <p className="muted">No puzzles generated yet.</p>
+          <p className="muted">{query ? "No puzzles match this search." : "No puzzles generated yet."}</p>
         ) : (
           <div className="admin-table-wrap">
             <table className="admin-article-table">
@@ -215,6 +252,7 @@ export function AdminPuzzlesPage() {
             </table>
           </div>
         )}
+        <ListPager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
       </section>
     </main>
   );
