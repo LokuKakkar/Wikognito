@@ -4,6 +4,7 @@ import {
   LOCAL_STORAGE_ADMIN_PLAY_KEY,
   applyPlayDifficulty,
   emptyPuzzleStats,
+  type DossierDetail,
   type PlayDifficulty,
   type PuzzleStats,
   type UserStatsResponse,
@@ -11,6 +12,7 @@ import {
 import { matchGuess } from "@redactle/puzzle-engine";
 import { usePuzzle } from "@/features/game/usePuzzle";
 import { useAdminPuzzle } from "@/features/game/useAdminPuzzle";
+import { useDossierPuzzle } from "@/features/game/useDossierPuzzle";
 import { useGame } from "@/features/game/useGame";
 import { PuzzleArticle } from "./PuzzleArticle";
 import { CaseDocument } from "./case/CaseDocument";
@@ -43,22 +45,27 @@ import { prefersReducedMotion } from "@/lib/motion";
 import { CaseNotice } from "./case/CaseNotice";
 import { advanceOccurrenceCursor } from "@/lib/cycle-occurrences";
 import { useMe } from "@/features/auth/useMe";
-import { fetchPuzzleStats, fetchTodayLeaderboard, fetchUserStats } from "@/lib/api";
+import { fetchDossier, fetchPuzzleStats, fetchTodayLeaderboard, fetchUserStats } from "@/lib/api";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export interface GamePageProps {
   articleId?: string;
   archivePuzzleId?: string;
+  dossierPlay?: { slug: string; caseId: string };
 }
 
-export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
+export function GamePage({ articleId, archivePuzzleId, dossierPlay }: GamePageProps = {}) {
   const isAdminPlay = Boolean(articleId);
-  const daily = usePuzzle(!isAdminPlay, archivePuzzleId);
+  const isNonDailyPlay = Boolean(archivePuzzleId || dossierPlay);
+  const daily = usePuzzle(!isAdminPlay && !dossierPlay, archivePuzzleId);
+  const dossier = useDossierPuzzle(dossierPlay);
   const admin = useAdminPuzzle(articleId);
   const { puzzle, error, loading, officialResult } = isAdminPlay
     ? { ...admin, officialResult: null }
-    : daily;
+    : dossierPlay
+      ? dossier
+      : daily;
   const [difficulty, setDifficulty] = useState<PlayDifficulty>("easy");
   const [difficultyReady, setDifficultyReady] = useState(false);
   const playPuzzle = useMemo(
@@ -91,6 +98,7 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
   const [justRevealed, setJustRevealed] = useState<string[]>([]);
   const [historyFocusId, setHistoryFocusId] = useState<string | null>(null);
   const [solveOpen, setSolveOpen] = useState(false);
+  const [dossierFolder, setDossierFolder] = useState<DossierDetail | null>(null);
   const [userStats, setUserStats] = useState<UserStatsResponse | null>(null);
   const [fetchedPuzzleStats, setFetchedPuzzleStats] = useState<PuzzleStats | null>(null);
   const occurrenceCursor = useRef(new Map<string, number>());
@@ -100,6 +108,24 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
     setDifficulty(readPlayDifficulty());
     setDifficultyReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!dossierPlay) {
+      setDossierFolder(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchDossier(dossierPlay.slug)
+      .then((folder) => {
+        if (!cancelled) setDossierFolder(folder);
+      })
+      .catch(() => {
+        if (!cancelled) setDossierFolder(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierPlay?.slug]);
 
   useEffect(() => {
     setReplayFromOfficial(false);
@@ -116,17 +142,17 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
     setPenTick(0);
     occurrenceCursor.current.clear();
     openedForAttempt.current = null;
-  }, [archivePuzzleId, puzzle?.puzzleId]);
+  }, [archivePuzzleId, dossierPlay?.caseId, puzzle?.puzzleId]);
 
   useEffect(() => {
-    if (isAdminPlay || archivePuzzleId) {
+    if (isAdminPlay || isNonDailyPlay) {
       setHowToOpen(false);
       return;
     }
     setHowToOpen(!hasSeenHowTo());
     setGuessTipSeen(hasSeenGuessTip());
     setLocateTipSeen(hasSeenLocateTip());
-  }, [isAdminPlay, archivePuzzleId, puzzle?.puzzleId]);
+  }, [isAdminPlay, isNonDailyPlay, puzzle?.puzzleId]);
 
   useEffect(() => {
     if (!user) {
@@ -326,7 +352,7 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
 
   const showCaseIntro = Boolean(
     !isAdminPlay &&
-      !archivePuzzleId &&
+      !isNonDailyPlay &&
       !howToOpen &&
       !showOfficialGate &&
       !caseStarted &&
@@ -336,6 +362,17 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
 
   const shellVariant = showOfficialGate || error || loading || howToOpen || showCaseIntro ? "page" : "game";
   const terminal = game.state?.status === "WON" || game.state?.status === "GAVE_UP";
+  const dossierCases = dossierFolder?.cases ?? [];
+  const dossierIndex = dossierCases.findIndex((item) => item.id === dossierPlay?.caseId);
+  const previousDossierCase = dossierIndex > 0 ? dossierCases[dossierIndex - 1] : undefined;
+  const nextDossierCase =
+    dossierIndex >= 0 && dossierIndex < dossierCases.length - 1
+      ? dossierCases[dossierIndex + 1]
+      : undefined;
+  const nextDossierHref =
+    dossierPlay && nextDossierCase
+      ? `/dossiers/${dossierPlay.slug}/cases/${nextDossierCase.id}`
+      : undefined;
 
   useEffect(() => {
     const key = terminal ? (game.state?.attemptId ?? null) : showOfficialGate ? officialResult?.completedAt ?? "filed" : null;
@@ -347,7 +384,7 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
       setSolveOpen(true);
     }, delayMs);
     return () => window.clearTimeout(timer);
-  }, [terminal, game.state?.attemptId, showOfficialGate, officialResult?.completedAt, puzzle?.puzzleId, archivePuzzleId]);
+  }, [terminal, game.state?.attemptId, showOfficialGate, officialResult?.completedAt, puzzle?.puzzleId, isNonDailyPlay]);
 
   useEffect(() => {
     if (isAdminPlay || !puzzle) return;
@@ -390,8 +427,14 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
   function renderBody() {
     if (loading || !difficultyReady) {
       return (
-        <CaseNotice title={archivePuzzleId ? "Archive" : "Wikognito"}>
-          <p>{archivePuzzleId ? "Loading archive puzzle…" : "Opening today’s case…"}</p>
+        <CaseNotice title={dossierPlay ? "Dossier" : archivePuzzleId ? "Archive" : "Wikognito"}>
+          <p>
+            {dossierPlay
+              ? "Opening case file…"
+              : archivePuzzleId
+                ? "Loading archive puzzle…"
+                : "Opening today’s case…"}
+          </p>
         </CaseNotice>
       );
     }
@@ -399,7 +442,7 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
     if (error || !puzzle || !playPuzzle) {
       return (
         <CaseNotice
-          title={isAdminPlay ? "Admin play" : archivePuzzleId ? "Archive" : "Wikognito"}
+          title={isAdminPlay ? "Admin play" : dossierPlay ? "Dossier" : archivePuzzleId ? "Archive" : "Wikognito"}
           tone="error"
         >
           <p className="error">{error ?? "Puzzle unavailable."}</p>
@@ -414,7 +457,7 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
 
     const disabled = !game.ready || game.state?.status !== "IN_PROGRESS" || showOfficialGate || howToOpen || showCaseIntro;
     const showLeaderboardCta = Boolean(
-      !archivePuzzleId &&
+      !isNonDailyPlay &&
         !isAdminPlay &&
         game.completion?.isOfficial &&
         game.completion.source === "DAILY" &&
@@ -453,6 +496,8 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
             showShare={false}
             showLeaderboardCta={false}
             onReplay={() => setReplayFromOfficial(true)}
+            nextHref={nextDossierHref}
+            nextLabel={nextDossierHref ? "Next case" : undefined}
           />
           <SolveStatsModal
             open={solveOpen}
@@ -529,6 +574,8 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
             game.replay();
           }}
           onShare={() => setShareOpen(true)}
+          nextHref={nextDossierHref}
+          nextLabel={nextDossierHref ? "Next case" : undefined}
         />
       ) : null;
 
@@ -540,7 +587,15 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
             {ceremony}
             <CaseDocument
               caseNumber={isAdminPlay ? undefined : puzzle.puzzleNumber}
-              label={isAdminPlay ? "Stored article preview" : "Daily case file"}
+              label={
+                isAdminPlay
+                  ? "Stored article preview"
+                  : dossierPlay
+                    ? "Dossier case file"
+                    : archivePuzzleId
+                      ? "Archive case file"
+                      : "Daily case file"
+              }
               filedOn={isAdminPlay ? undefined : puzzle.scheduledDate}
               fileStatus={
                 game.state?.status === "WON" ? "solved" : game.state?.status === "GAVE_UP" ? "closed" : "redacted"
@@ -557,6 +612,26 @@ export function GamePage({ articleId, archivePuzzleId }: GamePageProps = {}) {
                     <>
                       {" · "}
                       <Link href="/admin/play">All stored articles</Link>
+                    </>
+                  ) : dossierPlay ? (
+                    <>
+                      {dossierIndex >= 0 ? ` · Case ${String(dossierCases[dossierIndex]?.position ?? dossierIndex + 1).padStart(2, "0")} of ${dossierCases.length}` : ""}
+                      {previousDossierCase ? (
+                        <>
+                          {" · "}
+                          <Link href={`/dossiers/${dossierPlay.slug}/cases/${previousDossierCase.id}`}>
+                            Previous
+                          </Link>
+                        </>
+                      ) : null}
+                      {nextDossierCase ? (
+                        <>
+                          {" · "}
+                          <Link href={`/dossiers/${dossierPlay.slug}/cases/${nextDossierCase.id}`}>Next</Link>
+                        </>
+                      ) : null}
+                      {" · "}
+                      <Link href={`/dossiers/${dossierPlay.slug}`}>Back to dossier</Link>
                     </>
                   ) : archivePuzzleId ? (
                     <>

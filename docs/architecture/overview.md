@@ -36,13 +36,14 @@ Article Sources
 Backend API (Fastify)  ←→  Redis (gameplay sessions + public puzzle cache)
               │
               ▼
-        PostgreSQL Users / Sessions / GameResults
+        PostgreSQL Users / Sessions / GameResults / Dossiers
               │
               ▼
         Next.js Frontend
   decode → applyPlayDifficulty → local game engine → localStorage
   Sign in with Google or email (optional)
   /profile → authenticated official statistics
+  /dossiers → published themed collections (anonymous play)
   /archive → public DailyPuzzle history
   /history → private official results
   /settings → profile + password + deletion
@@ -230,8 +231,21 @@ Frontend / CLI → import service → URL normalizer → DB lookup
 
 ```text
 CLI / admin → generatePuzzleFromStoredArticle → validate → READY
-CLI / admin → publishDailyPuzzle(date) → DailyPuzzle + PUBLISHED + Redis
+CLI / admin / scheduler → publishDailyPuzzle(date) → DailyPuzzle + PUBLISHED + Redis
 ```
+
+`publishDailyPuzzle` selects a random unused READY puzzle, re-validates it, and treats unique-constraint races as `ALREADY_PUBLISHED`. `NO_CANDIDATE` leaves today empty.
+
+### Dossiers
+
+```text
+Dossier (PUBLISHED) → DossierCaseFile.position → Puzzle
+GET /api/dossiers/:slug/cases/:caseId → same opaque PublicPuzzleDto as archive
+GamePage(dossierPlay) → existing GameEngine → POST /api/games/complete
+source = ARCHIVE unless the puzzle is today's DailyPuzzle
+```
+
+A puzzle can sit in the daily pool and in multiple dossiers. Dossier membership does not change `Puzzle.status`.
 
 ## Payload sizing
 

@@ -31,6 +31,9 @@ async function main(): Promise<void> {
 
     if (result.status === "ALREADY_PUBLISHED") {
       console.log(`Already published: Puzzle #${result.puzzleNumber} (${result.puzzleId}) for ${result.date}`);
+    } else if (result.status === "NO_CANDIDATE") {
+      console.error(`No eligible READY puzzle for ${result.date}. DailyPuzzle was not changed.`);
+      process.exitCode = 1;
     } else {
       console.log(
         `Published Puzzle #${result.puzzleNumber} (${result.puzzleId}) for ${result.date}: ${result.title}`,

@@ -144,14 +144,16 @@ Free web services have no shell and no cron. They also sleep after 15 minutes wi
 
 Load the first articles and publish today's puzzle from the admin UI (`/admin/articles`, `/admin/puzzles`) after an admin Google sign-in. `GET /api/puzzles/today` never publishes. An empty database returns 404 for today.
 
-For the following UTC days, an external scheduler (for example cron-job.org) should wake the API and publish:
+For the following UTC days, an external scheduler (for example cron-job.org) should wake the API at **00:00 UTC** and publish. Add a retry a few minutes later. Free Render has no cron.
 
 ```bash
 curl -X POST "https://<backend-service-name>.onrender.com/api/internal/puzzles/publish-today" \
   -H "Authorization: Bearer <PUBLISH_SECRET>"
 ```
 
-503 means `PUBLISH_SECRET` is unset. 401 means the token does not match. Retries after a successful publish return `ALREADY_PUBLISHED`.
+503 means `PUBLISH_SECRET` is unset. 401 means the token does not match. Retries after a successful publish return `ALREADY_PUBLISHED`. `NO_CANDIDATE` means the unused READY pool is empty or invalid — do not invent a fallback puzzle.
+
+To populate production dossiers without SSH: sign in as admin and use `/admin/dossiers` / `POST /api/admin/corpus`, or run `pnpm dossiers:seed` locally with the Render **external** `DATABASE_URL` and `WIKIPEDIA_USER_AGENT`.
 
 ## Local development
 

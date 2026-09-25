@@ -7,6 +7,7 @@ import {
   BookOpen,
   CalendarCheck,
   ChartColumn,
+  FolderOpen,
   Library,
   LogIn,
   LogOut,
@@ -23,6 +24,7 @@ import { DetectiveAvatar } from "./avatar/DetectiveAvatar";
 
 const PUBLIC_LINKS: ReadonlyArray<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/", label: "Play", icon: BookOpen },
+  { href: "/dossiers", label: "Dossiers", icon: FolderOpen },
   { href: "/archive", label: "Archive", icon: Library },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/stats", label: "Stats", icon: ChartColumn },

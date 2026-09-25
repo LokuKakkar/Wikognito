@@ -38,7 +38,7 @@ Easy leaves more everyday words visible. Hard blacks out more of them. That choi
 
 **Notes that jump.** Right guesses stay in the notepad. Tap one to land on it in the file — useful when a word is hiding three paragraphs down.
 
-**A daily case, plus the archive.** One official puzzle per UTC day. Past files stay on the shelf if you want another investigation.
+**A daily case, plus dossiers and the archive.** One official puzzle per UTC day. Themed dossiers collect related case files. Past dailies stay on the shelf if you want another investigation.
 
 **Share without spoiling.** The share card is a visual result. It never includes the answer.
 

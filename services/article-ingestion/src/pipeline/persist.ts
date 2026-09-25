@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient, type Puzzle } from "@prisma/client";
 import type { Redis } from "ioredis";
 import {
   PublicPuzzleDtoSchema,
@@ -6,6 +6,7 @@ import {
   type PublicPuzzleDto,
 } from "@redactle/shared";
 import { computeDifficultyV1, restampPublicPuzzleDto } from "@redactle/puzzle-engine";
+import { validateStoredPuzzle } from "../puzzles/validate-stored.js";
 import type { PipelineResult } from "./pipeline.js";
 
 export function utcDateOnly(date: Date = new Date()): Date {
@@ -145,51 +146,85 @@ export function createRedisTodayCache(
 }
 
 export interface PublishDailyResult {
-  status: "PUBLISHED" | "ALREADY_PUBLISHED";
+  status: "PUBLISHED" | "ALREADY_PUBLISHED" | "NO_CANDIDATE";
   date: string;
-  puzzleId: string;
-  puzzleNumber: number;
-  title: string;
+  puzzleId?: string;
+  puzzleNumber?: number;
+  title?: string;
 }
 
-export async function publishDailyPuzzle(options: {
-  prisma: PrismaClient;
-  date?: Date;
-  puzzleId?: string;
-  cache?: TodayPuzzleCache | null;
-}): Promise<PublishDailyResult> {
-  const { prisma, puzzleId } = options;
-  const dateOnly = utcDateOnly(options.date ?? new Date());
-  const dateKey = formatUtcDate(dateOnly);
+function isUniqueViolation(error: unknown, field?: string): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+    return false;
+  }
+  if (!field) {
+    return true;
+  }
+  const target = error.meta?.target;
+  if (Array.isArray(target)) {
+    return target.includes(field);
+  }
+  if (typeof target === "string") {
+    return target.includes(field);
+  }
+  return false;
+}
 
+export async function listEligibleReadyPuzzleIds(prisma: PrismaClient): Promise<string[]> {
+  const usedArticles = await prisma.puzzle.findMany({
+    where: { status: "PUBLISHED" },
+    select: { articleId: true },
+    distinct: ["articleId"],
+  });
+  const usedIds = usedArticles.map((row) => row.articleId);
+  const rows = await prisma.puzzle.findMany({
+    where: {
+      status: "READY",
+      articleId: usedIds.length > 0 ? { notIn: usedIds } : undefined,
+    },
+    select: { id: true },
+  });
+  return rows.map((row) => row.id);
+}
+
+export async function selectReadyPuzzle(prisma: PrismaClient) {
+  const ids = await listEligibleReadyPuzzleIds(prisma);
+  if (ids.length === 0) {
+    return null;
+  }
+  const id = ids[Math.floor(Math.random() * ids.length)]!;
+  return prisma.puzzle.findUnique({ where: { id } });
+}
+
+async function findPublishedAssignment(
+  prisma: PrismaClient,
+  dateOnly: Date,
+  dateKey: string,
+): Promise<PublishDailyResult | null> {
   const existingAssignment = await prisma.dailyPuzzle.findUnique({
     where: { date: dateOnly },
     include: { puzzle: true },
   });
-  if (existingAssignment) {
-    return {
-      status: "ALREADY_PUBLISHED",
-      date: dateKey,
-      puzzleId: existingAssignment.puzzleId,
-      puzzleNumber: existingAssignment.puzzle.puzzleNumber,
-      title: existingAssignment.puzzle.title,
-    };
+  if (!existingAssignment) {
+    return null;
   }
+  return {
+    status: "ALREADY_PUBLISHED",
+    date: dateKey,
+    puzzleId: existingAssignment.puzzleId,
+    puzzleNumber: existingAssignment.puzzle.puzzleNumber,
+    title: existingAssignment.puzzle.title,
+  };
+}
 
-  const selected = puzzleId
-    ? await prisma.puzzle.findUnique({ where: { id: puzzleId } })
-    : await selectReadyPuzzle(prisma);
-
-  if (!selected) {
-    throw new Error("No READY puzzle is available to publish.");
-  }
-  if (selected.status === "PUBLISHED") {
-    throw new Error("Puzzle is already published.");
-  }
-  if (selected.status !== "READY") {
-    throw new Error(`Puzzle ${selected.id} is ${selected.status}, not READY.`);
-  }
-
+async function publishSelectedPuzzle(options: {
+  prisma: PrismaClient;
+  selected: Puzzle;
+  dateOnly: Date;
+  dateKey: string;
+  cache?: TodayPuzzleCache | null;
+}): Promise<PublishDailyResult> {
+  const { prisma, selected, dateOnly, dateKey } = options;
   const articleAlreadyUsed = await prisma.puzzle.findFirst({
     where: { articleId: selected.articleId, status: "PUBLISHED" },
     select: { id: true },
@@ -239,21 +274,91 @@ export async function publishDailyPuzzle(options: {
   };
 }
 
-export async function selectReadyPuzzle(prisma: PrismaClient) {
-  const usedArticles = await prisma.puzzle.findMany({
-    where: { status: "PUBLISHED" },
-    select: { articleId: true },
-    distinct: ["articleId"],
-  });
-  const usedIds = usedArticles.map((row) => row.articleId);
+export async function publishDailyPuzzle(options: {
+  prisma: PrismaClient;
+  date?: Date;
+  puzzleId?: string;
+  cache?: TodayPuzzleCache | null;
+}): Promise<PublishDailyResult> {
+  const { prisma, puzzleId } = options;
+  const dateOnly = utcDateOnly(options.date ?? new Date());
+  const dateKey = formatUtcDate(dateOnly);
 
-  return prisma.puzzle.findFirst({
-    where: {
-      status: "READY",
-      articleId: usedIds.length > 0 ? { notIn: usedIds } : undefined,
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const existingAssignment = await findPublishedAssignment(prisma, dateOnly, dateKey);
+  if (existingAssignment) {
+    return existingAssignment;
+  }
+
+  if (puzzleId) {
+    const selected = await prisma.puzzle.findUnique({ where: { id: puzzleId } });
+    if (!selected) {
+      throw new Error("No READY puzzle is available to publish.");
+    }
+    if (selected.status === "PUBLISHED") {
+      throw new Error("Puzzle is already published.");
+    }
+    if (selected.status !== "READY") {
+      throw new Error(`Puzzle ${selected.id} is ${selected.status}, not READY.`);
+    }
+    if (!validateStoredPuzzle(selected).ok) {
+      throw new Error("Selected puzzle failed validation.");
+    }
+    try {
+      return await publishSelectedPuzzle({
+        prisma,
+        selected,
+        dateOnly,
+        dateKey,
+        cache: options.cache,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        const published = await findPublishedAssignment(prisma, dateOnly, dateKey);
+        if (published) {
+          return published;
+        }
+      }
+      throw error;
+    }
+  }
+
+  const remaining = await listEligibleReadyPuzzleIds(prisma);
+  while (remaining.length > 0) {
+    const index = Math.floor(Math.random() * remaining.length);
+    const [candidateId] = remaining.splice(index, 1);
+    const candidate = await prisma.puzzle.findUnique({ where: { id: candidateId } });
+    if (!candidate || candidate.status !== "READY") {
+      continue;
+    }
+    if (!validateStoredPuzzle(candidate).ok) {
+      continue;
+    }
+    try {
+      return await publishSelectedPuzzle({
+        prisma,
+        selected: candidate,
+        dateOnly,
+        dateKey,
+        cache: options.cache,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error, "date") || isUniqueViolation(error, "DailyPuzzle_pkey")) {
+        const published = await findPublishedAssignment(prisma, dateOnly, dateKey);
+        if (published) {
+          return published;
+        }
+      }
+      if (isUniqueViolation(error, "puzzleId")) {
+        continue;
+      }
+      if (error instanceof Error && error.message.includes("already has a published daily puzzle")) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return { status: "NO_CANDIDATE", date: dateKey };
 }
 
 /**
@@ -291,5 +396,5 @@ export async function persistPipelineResult(
     puzzleId: ready.puzzleId,
     cache: options.cache,
   });
-  return { articleId: ready.articleId, puzzleId: published.puzzleId };
+  return { articleId: ready.articleId, puzzleId: published.puzzleId ?? ready.puzzleId };
 }

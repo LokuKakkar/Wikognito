@@ -35,6 +35,8 @@ The catalog lives in [`.env.example`](../.env.example). Copy it to `.env`. Never
 | `PUBLISH_SECRET` | yes | HTTP daily-publish fallback |
 | `LOG_LEVEL` | no | `debug` / `info` / `warn` / `error` |
 | `RATE_LIMIT_*` | no | Per-minute ceilings |
-| `WIKIPEDIA_*` | no | Admin/CLI import only |
+| `WIKIPEDIA_*` | no | Admin/CLI/corpus import only |
+| `WIKIPEDIA_IMPORT_CONCURRENCY` | no | Parallel corpus imports (default 2) |
+| `DAILY_POOL_WARNING_THRESHOLD` | no | Admin unused-READY warning (default 7) |
 
 Do not add `NEXT_PUBLIC_` copies of server secrets. There is no `SESSION_SECRET`; sessions are Redis IDs, not signed JWTs.

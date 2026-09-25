@@ -2424,7 +2424,14 @@ button.chip {
 }
 
 .dossier .pager button,
-.dossier .secondary-action-button {
+.dossier .secondary-action-button,
+.dossier .list-search button {
+  color: var(--ink-paper);
+  border-color: var(--paper-edge);
+}
+
+.dossier .list-search input {
+  background: var(--paper);
   color: var(--ink-paper);
   border-color: var(--paper-edge);
 }
@@ -2955,14 +2962,20 @@ h2 {
 }
 
 .admin-import-form,
-.admin-nav {
+.admin-nav,
+.list-search {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin: 1.25rem 0;
 }
 
-.admin-import-form input {
+.list-search {
+  margin: 0.75rem 0 1rem;
+}
+
+.admin-import-form input,
+.list-search input {
   flex: 1;
   min-width: 240px;
   padding: 0.7rem 0.85rem;
@@ -2972,7 +2985,8 @@ h2 {
   color: var(--ink);
 }
 
-.admin-import-form button {
+.admin-import-form button,
+.list-search button {
   padding: 0.7rem 1rem;
   border: none;
   border-radius: var(--radius);
@@ -3394,4 +3408,84 @@ h2 {
   .pager button {
     min-height: 44px;
   }
+}
+
+.dossier-collection a,
+.dossier-cases a {
+  display: grid;
+  grid-template-columns: 3.1rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.dossier-case-number {
+  font-family: var(--font-typewriter);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.dossier-closed-banner {
+  margin: 0.75rem 0 1rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--gold-ink, #b59a4c);
+  font-family: var(--font-typewriter);
+  letter-spacing: 0.04em;
+}
+
+.dossier-play-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  margin: 0.85rem 0 1.15rem;
+}
+
+.dossier-play-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.7rem 1.1rem;
+  background: var(--accent);
+  color: var(--bg);
+  text-decoration: none;
+  font-family: var(--font-typewriter);
+  letter-spacing: 0.04em;
+}
+
+.dossier .dossier-play-button {
+  background: var(--ink-paper);
+  color: var(--paper);
+}
+
+.redacted-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: 1.4em;
+}
+
+.redacted-title .word.redacted {
+  pointer-events: none;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.admin-case-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.admin-case-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-soft, #3a3228) 18%, transparent);
+}
+
+.admin-case-actions {
+  display: inline-flex;
+  gap: 0.35rem;
 }

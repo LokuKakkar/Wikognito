@@ -46,8 +46,8 @@ interface MediaWikiQueryResponse {
 }
 
 const DEFAULT_API_URL = "https://en.wikipedia.org/w/api.php";
-const DEFAULT_TIMEOUT_MS = 15_000;
-const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_TIMEOUT_MS = 45_000;
+const DEFAULT_MAX_RETRIES = 4;
 const RETRY_STATUS = new Set([429, 503]);
 
 function delay(ms: number): Promise<void> {
@@ -128,7 +128,9 @@ export class WikipediaArticleProvider implements ArticleProvider {
         });
 
         if (RETRY_STATUS.has(response.status) && attempt < this.maxRetries) {
-          await delay(250 * (attempt + 1));
+          const backoffMs =
+            response.status === 429 ? 8_000 * (attempt + 1) : 250 * (attempt + 1);
+          await delay(backoffMs);
           continue;
         }
 

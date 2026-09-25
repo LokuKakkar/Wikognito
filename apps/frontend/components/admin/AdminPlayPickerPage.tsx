@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ArticleSummary } from "@redactle/shared";
 import { fetchAdminArticles } from "@/lib/api";
+import { ListPager, ListSearch } from "../list/ListControls";
 import { AdminNav } from "./AdminNav";
+
+const PAGE_SIZE = 20;
 
 export function AdminPlayPickerPage() {
   const router = useRouter();
@@ -13,14 +16,19 @@ export function AdminPlayPickerPage() {
   const [articles, setArticles] = useState<ArticleSummary[]>([]);
   const [listError, setListError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const data = await fetchAdminArticles();
+        const data = await fetchAdminArticles(page, PAGE_SIZE, query || undefined);
         if (!cancelled) {
           setArticles(data.items);
+          setTotal(data.total);
           setListError(null);
         }
       } catch {
@@ -32,7 +40,7 @@ export function AdminPlayPickerPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, query]);
 
   function onSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -74,9 +82,20 @@ export function AdminPlayPickerPage() {
 
       <section>
         <h2>Stored articles</h2>
+        <ListSearch
+          id="play-article-search"
+          label="Search articles"
+          value={searchInput}
+          onChange={setSearchInput}
+          onSubmit={() => {
+            setPage(1);
+            setQuery(searchInput.trim());
+          }}
+          placeholder="Search by name or ID"
+        />
         {listError ? <p className="error">{listError}</p> : null}
         {articles.length === 0 && !listError ? (
-          <p className="muted">No articles stored yet.</p>
+          <p className="muted">{query ? "No articles match this search." : "No articles stored yet."}</p>
         ) : (
           <div className="admin-table-wrap">
             <table className="admin-article-table">
@@ -110,6 +129,7 @@ export function AdminPlayPickerPage() {
             </table>
           </div>
         )}
+        <ListPager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
       </section>
     </main>
   );

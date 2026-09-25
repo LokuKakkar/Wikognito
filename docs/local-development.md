@@ -38,5 +38,7 @@ Seeded accounts (see `.env` `GOOGLE_ADMIN_EMAILS`):
 | `pnpm puzzles:generate -- --article-id <id>` | Generate a READY puzzle |
 | `pnpm puzzles:validate` | Validate the pool |
 | `pnpm puzzles:publish-today` | Assign today's DailyPuzzle |
+| `pnpm corpus:process -- --file <urls.txt>` | Import URLs and generate puzzles |
+| `pnpm dossiers:seed -- --file <seed.json>` | Import, generate, and attach a dossier |
 
 See [environment.md](environment.md) for every variable.

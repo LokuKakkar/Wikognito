@@ -6,6 +6,7 @@ import type {
   PublicPuzzleDto,
   PublishTodayResponse,
   PuzzleListResponse,
+  PuzzlePoolStats,
   ValidatePuzzlesResponse,
 } from "@redactle/shared";
 import type { GameRepository } from "../games/game.repository.js";
@@ -64,8 +65,8 @@ export class PuzzleService {
     return this.puzzles.toPublicDto(assignment.puzzle);
   }
 
-  list(page: number, pageSize: number): Promise<PuzzleListResponse> {
-    return this.puzzles.list(page, pageSize);
+  list(page: number, pageSize: number, q?: string): Promise<PuzzleListResponse> {
+    return this.puzzles.list(page, pageSize, q);
   }
 
   generate(articleId: string, force = false): Promise<GeneratePuzzleResponse> {
@@ -99,5 +100,39 @@ export class PuzzleService {
         400,
       );
     }
+  }
+
+  async poolStats(warningThreshold: number): Promise<PuzzlePoolStats> {
+    const [usedInDaily, dossierLinked, unusedReady] = await Promise.all([
+      this.prisma.dailyPuzzle.count(),
+      this.prisma.dossierCaseFile.findMany({
+        distinct: ["puzzleId"],
+        select: { puzzleId: true },
+      }),
+      this.prisma.puzzle.findMany({
+        where: {
+          status: "READY",
+          dailyAssignment: { is: null },
+          article: { puzzles: { none: { status: "PUBLISHED" } } },
+        },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, title: true, createdAt: true },
+      }),
+    ]);
+    const oldestReady = unusedReady[0] ?? null;
+    const newestReady = unusedReady[unusedReady.length - 1] ?? null;
+    return {
+      readyUnused: unusedReady.length,
+      usedInDaily,
+      dossierLinked: dossierLinked.length,
+      oldestReady: oldestReady
+        ? { id: oldestReady.id, title: oldestReady.title, createdAt: oldestReady.createdAt.toISOString() }
+        : null,
+      newestReady: newestReady
+        ? { id: newestReady.id, title: newestReady.title, createdAt: newestReady.createdAt.toISOString() }
+        : null,
+      warningThreshold,
+      lowPool: unusedReady.length < warningThreshold,
+    };
   }
 }

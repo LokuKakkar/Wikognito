@@ -17,16 +17,27 @@ const ARTICLE_LIST_SELECT = {
 export class ArticleRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async list(page: number, pageSize: number): Promise<ArticleListResponse> {
+  async list(page: number, pageSize: number, q?: string): Promise<ArticleListResponse> {
     const skip = (page - 1) * pageSize;
+    const query = q?.trim();
+    const where = query
+      ? {
+          OR: [
+            { title: { contains: query, mode: "insensitive" as const } },
+            { id: { contains: query, mode: "insensitive" as const } },
+            { externalId: { contains: query, mode: "insensitive" as const } },
+          ],
+        }
+      : undefined;
     const [rows, total] = await Promise.all([
       this.prisma.article.findMany({
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
+        where,
         select: ARTICLE_LIST_SELECT,
       }),
-      this.prisma.article.count(),
+      this.prisma.article.count({ where }),
     ]);
 
     return {

@@ -19,7 +19,7 @@ Wikognito Backend (Fastify)
 PostgreSQL (durable) + Redis (sessions / cache)
 ```
 
-- **PostgreSQL** owns users, articles, puzzles, DailyPuzzle, official results, stats, leaderboard rows.
+- **PostgreSQL** owns users, articles, puzzles, DailyPuzzle, dossiers, official results, stats, leaderboard rows.
 - **Redis** owns recoverable gameplay sessions, OAuth state, today’s puzzle cache, rate-limit counters.
 - Wikipedia is an **import source**, not a gameplay dependency. `GET /api/puzzles/today` never publishes.
 
@@ -29,14 +29,15 @@ Authentication upgrades persistence. It does not unlock play. Anonymous visitors
 
 ## What you can do today
 
-- Play today’s official puzzle and past archive puzzles
+- Play today’s official puzzle, themed dossiers, and past archive puzzles
 - Guess locally; reload without losing the current attempt (`localStorage`)
 - Sign in with Google or email/password; claim an anonymous session
 - Keep official stats, streaks (daily only), history, profile
 - Appear on today’s authenticated official-win leaderboard
 - Share a result that never includes the answer
-- Import Wikipedia articles (admin UI or CLI)
+- Import Wikipedia articles (admin UI, CLI, or corpus job)
 - Generate / validate READY puzzles and publish today (admin UI or CLI)
+- Seed dossiers from a JSON definition and play case files anonymously
 - Preview a stored article at `/admin/play` without changing today’s puzzle
 
 Play difficulty (Settings, default Easy) is client-only. Published puzzles stay redacted with the hard common-word list. Easy and Medium open extra stopwords in the browser, including in the title, so those words are not guessed and are not required to win. Official score v1 is unchanged.
@@ -47,7 +48,7 @@ Local URLs after `pnpm dev`:
 - API: http://localhost:4000
 - Health: http://localhost:4000/health
 - Ready: http://localhost:4000/health/ready
-- Admin: http://localhost:3002/admin/articles · `/admin/puzzles` · `/admin/play`
+- Admin: http://localhost:3002/admin/articles · `/admin/puzzles` · `/admin/dossiers` · `/admin/play`
 
 ---
 
@@ -124,6 +125,17 @@ Local URLs after `pnpm dev`:
 - Lucide line icons in chrome/HUD only
 - Official-once rules, streaks, and score v1 are unchanged
 - Client play difficulty: Easy / Medium / Hard. Default Easy. Does not rewrite the published payload
+
+### Phase 9 — Dossiers, corpus, automated daily publish
+
+- Dossier model: published collections of reusable READY/PUBLISHED puzzles
+- Public `/dossiers` list and case-file play without an auth wall
+- Dossier completion is official win (server) plus localStorage `WON` for guests
+- Dossier play is archive-like: `GameResult.source` is `ARCHIVE` unless the case is also today’s daily
+- Corpus job: URL list → import (idempotent) → generate/validate READY
+- `pnpm corpus:process` and `pnpm dossiers:seed` plus admin `/api/admin/corpus` and `/api/admin/dossiers/seed`
+- Daily publish selects a random unused READY puzzle, re-validates, skips invalids, and is unique-safe
+- Scheduler stays a thin HTTPS call to `POST /api/internal/puzzles/publish-today` at 00:00 UTC
 
 ---
 

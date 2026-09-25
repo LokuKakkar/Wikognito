@@ -1,15 +1,12 @@
 import type { Article as PrismaArticle, PrismaClient } from "@prisma/client";
 import type { Article } from "@redactle/shared";
-import {
-  CompactPuzzleV2Schema,
-  decodeClientPayload,
-  simulateTitleWin,
-  toCompactPuzzle,
-} from "@redactle/puzzle-engine";
-import { PublicPuzzleDtoSchema } from "@redactle/shared";
 import { runIngestionPipeline } from "../pipeline/pipeline.js";
 import { persistReadyPuzzle, readyPuzzleId } from "../pipeline/persist.js";
 import { PuzzleValidationError } from "../validator/validator.js";
+import { validateStoredPuzzle, type ValidateStoredPuzzleResult } from "./validate-stored.js";
+
+export { validateStoredPuzzle } from "./validate-stored.js";
+export type { ValidateStoredPuzzleResult } from "./validate-stored.js";
 
 export function toPipelineArticle(row: PrismaArticle): Article {
   return {
@@ -114,48 +111,11 @@ export async function generatePuzzlesForAllArticles(options: {
   return results;
 }
 
-export interface ValidateStoredPuzzleResult {
-  puzzleId: string;
-  articleId: string;
-  title: string;
-  status: string;
-  ok: boolean;
-  reason?: string;
-}
-
 export async function validateStoredPuzzles(options: {
   prisma: PrismaClient;
 }): Promise<ValidateStoredPuzzleResult[]> {
   const puzzles = await options.prisma.puzzle.findMany({
     orderBy: { createdAt: "asc" },
   });
-  return puzzles.map((puzzle) => {
-    const base = {
-      puzzleId: puzzle.id,
-      articleId: puzzle.articleId,
-      title: puzzle.title,
-      status: puzzle.status,
-    };
-    try {
-      const dto = PublicPuzzleDtoSchema.parse(puzzle.clientPuzzleData);
-      const decoded = decodeClientPayload(dto.payload);
-      const compact = toCompactPuzzle(decoded);
-      const compactResult = CompactPuzzleV2Schema.safeParse(compact);
-      if (!compactResult.success) {
-        return { ...base, ok: false, reason: "MALFORMED_COMPACT" };
-      }
-      if (!simulateTitleWin(decoded).won) {
-        return { ...base, ok: false, reason: "NOT_PLAYABLE" };
-      }
-      return { ...base, ok: true };
-    } catch (error) {
-      const reason =
-        error instanceof PuzzleValidationError
-          ? error.reason
-          : error instanceof Error
-            ? error.message
-            : String(error);
-      return { ...base, ok: false, reason };
-    }
-  });
+  return puzzles.map((puzzle) => validateStoredPuzzle(puzzle));
 }

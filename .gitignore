@@ -38,6 +38,9 @@ apps/backend/prisma/*.db-journal
 # Wikipedia article snapshots (restore with pnpm articles:restore)
 data/wikipedia-articles/*.json
 
+# Operator-only bulk corpus lists and API scripts (not shipped)
+ops/bulk-corpus/
+
 # Misc
 *.pem
 .turbo/

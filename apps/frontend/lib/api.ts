@@ -19,6 +19,16 @@ import type {
   StatsResponse,
   UserStatsResponse,
   ValidatePuzzlesResponse,
+  AdminDossierDetail,
+  AdminDossierListResponse,
+  CorpusProcessResponse,
+  CreateDossierRequest,
+  DossierDetail,
+  DossierListResponse,
+  DossierSeedRequest,
+  DossierSeedResponse,
+  PuzzlePoolStats,
+  UpdateDossierRequest,
 } from "@redactle/shared";
 import { decodeClientPayload } from "@redactle/puzzle-engine";
 import type { ClientPuzzle } from "@redactle/shared";
@@ -154,8 +164,10 @@ export function importWikipediaArticle(url: string): Promise<ImportArticleRespon
   });
 }
 
-export function fetchAdminArticles(page = 1, pageSize = 20): Promise<ArticleListResponse> {
-  return apiFetch<ArticleListResponse>(`/api/admin/articles?page=${page}&pageSize=${pageSize}`);
+export function fetchAdminArticles(page = 1, pageSize = 20, q?: string): Promise<ArticleListResponse> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (q) query.set("q", q);
+  return apiFetch<ArticleListResponse>(`/api/admin/articles?${query.toString()}`);
 }
 
 export async function fetchAdminArticlePuzzle(articleId: string): Promise<ClientPuzzle> {
@@ -164,8 +176,10 @@ export async function fetchAdminArticlePuzzle(articleId: string): Promise<Client
   return decodeClientPayload(dto.payload);
 }
 
-export function fetchAdminPuzzles(page = 1, pageSize = 20): Promise<PuzzleListResponse> {
-  return apiFetch<PuzzleListResponse>(`/api/admin/puzzles?page=${page}&pageSize=${pageSize}`);
+export function fetchAdminPuzzles(page = 1, pageSize = 20, q?: string): Promise<PuzzleListResponse> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (q) query.set("q", q);
+  return apiFetch<PuzzleListResponse>(`/api/admin/puzzles?${query.toString()}`);
 }
 
 export function generateAdminPuzzle(articleId: string, force = false): Promise<GeneratePuzzleResponse> {
@@ -251,6 +265,109 @@ export function changePassword(currentPassword: string, newPassword: string): Pr
     method: "POST",
     body: JSON.stringify({ currentPassword, newPassword }),
   });
+}
+
+export function fetchDossiers(page = 1, pageSize = 20, q?: string): Promise<DossierListResponse> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (q) query.set("q", q);
+  return apiFetch<DossierListResponse>(`/api/dossiers?${query.toString()}`);
+}
+
+export function fetchDossier(slug: string): Promise<DossierDetail> {
+  return apiFetch<DossierDetail>(`/api/dossiers/${encodeURIComponent(slug)}`);
+}
+
+export async function fetchDossierCase(
+  slug: string,
+  caseId: string,
+): Promise<{
+  puzzle: ClientPuzzle;
+  officialResult: OfficialResultSummary | null;
+}> {
+  const dto = await apiFetch<ArchivePuzzleResponse>(
+    `/api/dossiers/${encodeURIComponent(slug)}/cases/${encodeURIComponent(caseId)}`,
+  );
+  return {
+    puzzle: decodeClientPayload(dto.payload),
+    officialResult: dto.officialResult,
+  };
+}
+
+export function fetchAdminDossiers(
+  page = 1,
+  pageSize = 20,
+  q?: string,
+): Promise<AdminDossierListResponse> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (q) query.set("q", q);
+  return apiFetch<AdminDossierListResponse>(`/api/admin/dossiers?${query.toString()}`);
+}
+
+export function fetchAdminDossier(id: string): Promise<AdminDossierDetail> {
+  return apiFetch<AdminDossierDetail>(`/api/admin/dossiers/${encodeURIComponent(id)}`);
+}
+
+export function createAdminDossier(payload: CreateDossierRequest): Promise<AdminDossierDetail> {
+  return apiFetch<AdminDossierDetail>("/api/admin/dossiers", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminDossier(id: string, payload: UpdateDossierRequest): Promise<AdminDossierDetail> {
+  return apiFetch<AdminDossierDetail>(`/api/admin/dossiers/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function addAdminDossierCase(
+  id: string,
+  payload: { puzzleId?: string; articleId?: string },
+): Promise<AdminDossierDetail> {
+  return apiFetch<AdminDossierDetail>(`/api/admin/dossiers/${encodeURIComponent(id)}/cases`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function removeAdminDossierCase(id: string, caseId: string): Promise<AdminDossierDetail> {
+  return apiFetch<AdminDossierDetail>(
+    `/api/admin/dossiers/${encodeURIComponent(id)}/cases/${encodeURIComponent(caseId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function reorderAdminDossierCase(
+  id: string,
+  caseId: string,
+  position: number,
+): Promise<AdminDossierDetail> {
+  return apiFetch<AdminDossierDetail>(
+    `/api/admin/dossiers/${encodeURIComponent(id)}/cases/${encodeURIComponent(caseId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ position }),
+    },
+  );
+}
+
+export function seedAdminDossier(payload: DossierSeedRequest): Promise<DossierSeedResponse> {
+  return apiFetch<DossierSeedResponse>("/api/admin/dossiers/seed", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function processAdminCorpus(urls: string[]): Promise<CorpusProcessResponse> {
+  return apiFetch<CorpusProcessResponse>("/api/admin/corpus", {
+    method: "POST",
+    body: JSON.stringify({ urls }),
+  });
+}
+
+export function fetchPuzzlePoolStats(): Promise<PuzzlePoolStats> {
+  return apiFetch<PuzzlePoolStats>("/api/admin/puzzles/pool-stats");
 }
 
 export function deleteAccount(confirm: "DELETE", password?: string): Promise<{ ok: true }> {
