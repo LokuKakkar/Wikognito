@@ -1,8 +1,8 @@
 # Deployment
 
-Free initial hosting for Wikognito. Nothing in this repository deploys itself. You create the accounts and paste credentials in provider dashboards. Do not commit secrets.
+Live Render hosting for Wikognito. Credentials stay in the Render dashboard. Do not commit secrets.
 
-Platform reference for later help: [deployment-platforms.md](deployment-platforms.md). Checkbox list: [deployment-checklist.md](deployment-checklist.md). Variable catalog: [environment.md](environment.md).
+What is already running: [what-is-built.md](what-is-built.md). Variable catalog: [environment.md](environment.md).
 
 ```text
 GitHub  https://github.com/LokuKakkar/Wikognito.git
@@ -20,7 +20,12 @@ Vercel is not used. No custom domain yet. Docker Compose stays local-only (`pnpm
 
 All four Render resources must be in the **same region**. Free web services can reach datastores on the private network only in that region. Use **Internal** connection strings, not external ones.
 
-A service URL is `https://<service-name>.onrender.com`. You choose the name when you create the service, before the first successful start. Use that name in environment variables. Do not guess a URL that Render has not assigned.
+Current production origins:
+
+- Frontend: `https://wikognito.onrender.com`
+- Backend: `https://wikognito-api.onrender.com`
+
+Auth and cookies are working on those hosts. A new service would still be `https://<service-name>.onrender.com`. Use the name Render assigns. Do not invent a different URL.
 
 ## Services
 

@@ -1,6 +1,8 @@
-# Architecture Overview (Phase 7)
+# Architecture Overview
 
-Public product name: **Wikognito**. See [docs/architecture.md](../architecture.md) for the production summary.
+Public product name: **Wikognito**. Short production summary: [docs/architecture.md](../architecture.md). What exists today: [docs/what-is-built.md](../what-is-built.md).
+
+Production is two Render web services plus Render Postgres and Render Key Value. Origins: `https://wikognito.onrender.com` and `https://wikognito-api.onrender.com`. One API process, one frontend, one Postgres, one Redis.
 
 ## Components
 
@@ -38,8 +40,8 @@ Backend API (Fastify)  ←→  Redis (gameplay sessions + public puzzle cache)
               │
               ▼
         Next.js Frontend
-  decode → local game engine → localStorage
-  Sign in with Google (optional)
+  decode → applyPlayDifficulty → local game engine → localStorage
+  Sign in with Google or email (optional)
   /profile → authenticated official statistics
   /archive → public DailyPuzzle history
   /history → private official results
@@ -142,6 +144,8 @@ Redis key: `redactle:puzzle:v2:today:{YYYY-MM-DD}`. PostgreSQL/DailyPuzzle is so
 The game becomes `WON` when every `titleTokenId` is revealed. Those IDs are the guessable (non-common) title words, including body occurrences of the same match keys. Common title words are already visible and are not required.
 
 This is evaluated in the puzzle/game engine, not in UI code.
+
+Play difficulty does not change the stored payload. `applyPlayDifficulty` (default `easy`) reveals extra stopwords on the client before play. Hard uses `COMMON_VISIBLE_WORDS` only. Words opened this way are already visible, so they are not required to win. The official puzzle and score version stay the same.
 
 ## Terminal persistence + replay
 

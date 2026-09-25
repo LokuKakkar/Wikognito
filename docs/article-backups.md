@@ -93,7 +93,7 @@ Same snapshots, production database.
 5. `pnpm puzzles:generate -- --all` and `pnpm puzzles:validate`
 6. Fill a READY pool **before** the first 00:00 UTC cron
 7. `pnpm puzzles:publish-today` once for the launch UTC date
-8. Attach the daily scheduler ([go-live.md](go-live.md))
+8. Schedule daily publish with an external HTTPS caller (`POST /api/internal/puzzles/publish-today`). See [deployment.md](deployment.md).
 
 You can also import live with Wikipedia (`WIKIPEDIA_USER_AGENT` required) instead of restore. Restore is faster and does not call Wikimedia.
 
