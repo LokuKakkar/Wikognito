@@ -142,9 +142,9 @@ Gameplay does not require Google. Email/password and anonymous play work without
 
 Free web services have no shell and no cron. They also sleep after 15 minutes without traffic.
 
-Load the first articles and publish today's puzzle from the admin UI (`/admin/articles`, `/admin/puzzles`) after an admin Google sign-in. `GET /api/puzzles/today` never publishes. An empty database returns 404 for today.
+Load the first articles from the admin UI (`/admin/articles`, `/admin/puzzles`) after an admin Google sign-in. The API assigns today's puzzle on startup, at 00:00 UTC while the process is awake, and on `GET /api/puzzles/today` when that UTC date has no assignment. An empty READY pool returns 404 for today.
 
-For the following UTC days, an external scheduler (for example cron-job.org) should wake the API at **00:00 UTC** and publish. Add a retry a few minutes later. Free Render has no cron.
+Free Render has no cron and sleeps when idle, so the request path is what publishes after a night with no traffic. An external scheduler is optional:
 
 ```bash
 curl -X POST "https://<backend-service-name>.onrender.com/api/internal/puzzles/publish-today" \

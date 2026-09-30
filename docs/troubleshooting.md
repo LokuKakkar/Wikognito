@@ -12,7 +12,7 @@ PostgreSQL is down or `DATABASE_URL` is wrong. Redis `degraded` alone must not 5
 
 ## Today's puzzle 404
 
-No `DailyPuzzle` for the current UTC date. Run `pnpm puzzles:publish-today` or publish from `/admin/puzzles`. Confirm the READY pool is not empty (`pnpm puzzles:validate`).
+No `DailyPuzzle` for the current UTC date and no unused READY puzzle. The API publishes automatically on startup and on `GET /api/puzzles/today`. If today is still missing, the READY pool is empty. Confirm with `pnpm puzzles:validate`, or publish from `/admin/puzzles`.
 
 ## Google sign-in loops or fails
 
