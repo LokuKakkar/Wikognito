@@ -24,7 +24,7 @@ Batch Wikipedia import is sequential with `WIKIPEDIA_REQUEST_DELAY_MS` between f
 
 `DailyPuzzle` is UTC. Publication time is **00:00 UTC**. The scheduler must stay thin: it only calls the existing publish endpoint. Selection, validation, assignment, and Redis cache updates stay in Fastify.
 
-Normal production path: an external scheduler (for example cron-job.org) at 00:00 UTC, plus a retry a few minutes later:
+The API publishes on its own: once at process start, again at 00:00 UTC while the process is awake, and on `GET /api/puzzles/today` when that UTC date has no `DailyPuzzle` (this covers a free-tier process that slept through midnight). An external scheduler is optional:
 
 ```bash
 curl -X POST "$BACKEND_URL/api/internal/puzzles/publish-today" \

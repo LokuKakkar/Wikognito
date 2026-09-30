@@ -3,7 +3,7 @@
 Live site: https://wikognito.onrender.com  
 Live API: https://wikognito-api.onrender.com  
 
-Hosted on Render (free): Next.js web service, Fastify web service, Postgres, Key Value. No custom domain. Auth cookies work across those two `onrender.com` hosts. Mail is log-only (`SMTP_URL` empty). Daily publish, if scheduled, is an external HTTPS `POST` to `/api/internal/puzzles/publish-today` (free tier has no cron and sleeps when idle).
+Hosted on Render (free): Next.js web service, Fastify web service, Postgres, Key Value. No custom domain. Auth cookies work across those two `onrender.com` hosts. Mail is log-only (`SMTP_URL` empty). Daily publish runs inside the API: at startup, at 00:00 UTC while the process is awake, and on `GET /api/puzzles/today` when that UTC date has no assignment (free tier has no cron and sleeps when idle). `POST /api/internal/puzzles/publish-today` remains an optional external trigger.
 
 **Wikognito** is a redacted-Wikipedia word game. The player sees a hidden article and guesses words. Matching and revealing happen **in the browser**. A guess does not call the API.
 

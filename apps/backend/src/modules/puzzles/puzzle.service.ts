@@ -29,6 +29,14 @@ export class PuzzleService {
   ) {}
 
   async getToday(): Promise<PublicPuzzleDto> {
+    const existing = await this.puzzles.getTodayPublicPuzzle();
+    if (existing) {
+      return existing;
+    }
+    const published = await this.publishToday();
+    if (published.status === "NO_CANDIDATE") {
+      throw new AppError("PUZZLE_NOT_FOUND", "Today's puzzle could not be found.", 404);
+    }
     const puzzle = await this.puzzles.getTodayPublicPuzzle();
     if (!puzzle) {
       throw new AppError("PUZZLE_NOT_FOUND", "Today's puzzle could not be found.", 404);
