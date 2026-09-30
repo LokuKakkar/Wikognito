@@ -2,8 +2,6 @@ import type { PrismaClient } from "@prisma/client";
 import type { Redis } from "ioredis";
 import { createRedisTodayCache, publishDailyPuzzle } from "@redactle/article-ingestion";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 export function msUntilNextUtcMidnight(now = new Date()): number {
   const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
   return Math.max(next - now.getTime(), 1_000);
