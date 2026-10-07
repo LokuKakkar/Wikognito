@@ -65,6 +65,7 @@ import { rateLimitMax } from "./modules/security/rate-limit.js";
 import { timingSafeEqualSecret } from "./modules/security/secrets.js";
 import { DossierRepository } from "./modules/dossiers/dossier.repository.js";
 import { DossierService } from "./modules/dossiers/dossier.service.js";
+import { ensureCrowdForToday } from "./modules/crowd/seed-crowd-play.js";
 
 export interface AppDeps {
   config: AppConfig;
@@ -304,7 +305,18 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.get("/api/puzzles/today", async (request, reply) => {
     try {
       await ensureSessionId(request, reply);
-      return await puzzleService.getToday();
+      const puzzle = await puzzleService.getToday();
+      if (config.NODE_ENV !== "test") {
+        try {
+          await ensureCrowdForToday(prisma);
+        } catch (error) {
+          logger.error("crowd_play_failed", {
+            requestId: request.id,
+            message: error instanceof Error ? error.message : "Could not file crowd solves.",
+          });
+        }
+      }
+      return puzzle;
     } catch (error) {
       logger.error("puzzle_fetch_failed", {
         requestId: request.id,

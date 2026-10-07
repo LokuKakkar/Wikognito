@@ -16,6 +16,7 @@
     "db:migrate": "pnpm --filter @redactle/backend db:migrate",
     "db:migrate:deploy": "pnpm --filter @redactle/backend db:migrate:deploy",
     "db:seed": "pnpm --filter @redactle/backend db:seed",
+    "db:seed:crowd": "pnpm --filter @redactle/backend db:seed:crowd",
     "db:reset": "pnpm --filter @redactle/backend db:reset",
     "verify:production": "pnpm --filter @redactle/backend verify:production",
     "redis:clear": "DOCKER_HOST=unix:///var/run/docker.sock docker compose -f infrastructure/docker/docker-compose.yml exec -T redis redis-cli FLUSHDB",
