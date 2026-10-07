@@ -43,7 +43,7 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   PUBLISH_SECRET: z.string().optional().default(""),
   RATE_LIMIT_ENABLED: optionalBoolean,
-  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(10),
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(120),
   RATE_LIMIT_GAME_MAX: z.coerce.number().int().positive().default(60),
   RATE_LIMIT_ADMIN_MAX: z.coerce.number().int().positive().default(30),
   RATE_LIMIT_PUBLIC_MAX: z.coerce.number().int().positive().default(120),

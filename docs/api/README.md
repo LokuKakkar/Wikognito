@@ -158,7 +158,7 @@ Create an email/password account and claim the current anonymous session.
 }
 ```
 
-Password must be at least 8 characters. Canonical identity is `AuthIdentity(EMAIL, email)`, not Google.
+Password must be at least 8 characters. Canonical identity is `AuthIdentity(EMAIL, email)`, not Google. While verification mail is disabled, the account is created with `emailVerified: true`.
 
 `409 EMAIL_TAKEN` if that email is already registered.
 
@@ -166,7 +166,7 @@ Password must be at least 8 characters. Canonical identity is `AuthIdentity(EMAI
 
 ## POST `/api/auth/login`
 
-Sign in with email and password. Claims the current anonymous session. Role is `ADMIN` when the email is listed in `GOOGLE_ADMIN_EMAILS`.
+Sign in with email and password. Claims the current anonymous session. Role is `ADMIN` when the email is listed in `GOOGLE_ADMIN_EMAILS`. While verification mail is disabled, an unverified address is marked verified on this login.
 
 `401 INVALID_CREDENTIALS` for unknown email or wrong password.
 
@@ -287,7 +287,7 @@ Consumes a single-use hashed verification token and sets `emailVerifiedAt`.
 
 ## POST `/api/auth/email/resend`
 
-Authenticated. Sends a new verification email when the account is unverified and has a local password. Always returns `{ ok: true }`.
+Authenticated. Always returns `{ ok: true }`. While verification mail is disabled this does not send email.
 
 ## POST `/api/auth/password/forgot`
 

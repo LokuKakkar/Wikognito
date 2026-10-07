@@ -22,11 +22,11 @@ No `DailyPuzzle` for the current UTC date and no unused READY puzzle. The API pu
 
 ## Email never arrives
 
-`SMTP_URL` empty logs mail to the backend console. Production mail is out of scope.
+Verification email is off. Register, login, and `/api/me` mark the address verified, so the verify banner does not appear. Password reset still needs mail: an empty `SMTP_URL` logs that message to the backend console.
 
 ## 429 Too many requests
 
-Auth, game sync/complete, admin, and public reads are rate-limited. Defaults are per minute. Raise `RATE_LIMIT_*` if a shared NAT is hitting auth.
+Auth, game sync/complete, admin, and public reads are rate-limited per minute. Auth (including register) allows 120 requests per minute per IP by default. Raise `RATE_LIMIT_*` if a shared NAT still hits the ceiling. If Render has `RATE_LIMIT_AUTH_MAX` set, that value overrides the code default.
 
 ## CORS / cookies in production
 
