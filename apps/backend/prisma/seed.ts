@@ -13,6 +13,7 @@ import {
   readyPuzzleId,
 } from "@redactle/article-ingestion";
 import { hashPassword } from "../src/modules/auth/password.js";
+import { ensureCrowdPlay } from "../src/modules/crowd/seed-crowd-play.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: resolve(__dirname, "../../../.env") });
@@ -122,6 +123,7 @@ async function main(): Promise<void> {
       cache: createRedisTodayCache(redis),
     });
 
+    const crowdInserted = await ensureCrowdPlay(prisma);
     console.log(
       JSON.stringify(
         {
@@ -129,6 +131,8 @@ async function main(): Promise<void> {
           userId: "user-dummy-phase1",
           localAdmin: "admin@redactle.local",
           localPlayer: "player@redactle.local",
+          crowdPlayers: 20,
+          crowdInserted,
           articleId: persisted.articleId,
           puzzleId: persisted.puzzleId,
           scheduledDate: formatUtcDate(scheduledDate),

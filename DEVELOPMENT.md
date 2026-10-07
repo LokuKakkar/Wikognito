@@ -126,6 +126,7 @@ Seeded local accounts (after `pnpm db:seed`):
 
 - Admin: `admin@redactle.local` / `redactle-admin`
 - Player: `player@redactle.local` / `redactle-player`
+- Crowd: 20 Gmail accounts, password `password` (for example `aarav.wikognito@gmail.com`, display name Aarav). Names are Indian first names or oddly specific handles. A different subset files each daily puzzle, with varied guess counts, accuracy, and scores. The API refreshes that on startup and when today's puzzle is served.
 
 Include `admin@redactle.local` in `GOOGLE_ADMIN_EMAILS` so the seeded admin stays ADMIN after login.
 

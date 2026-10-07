@@ -15,6 +15,7 @@
     "db:migrate": "dotenv -e ../../.env -- prisma migrate dev",
     "db:migrate:deploy": "sh -c 'if [ -f ../../.env ]; then exec dotenv -e ../../.env -- prisma migrate deploy; else exec prisma migrate deploy; fi'",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:crowd": "tsx src/cli/seed-crowd.ts",
     "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate"
@@ -33,11 +34,13 @@
     "fastify": "^5.4.0",
     "ioredis": "^5.7.0",
     "nodemailer": "^9.0.5",
+    "seedrandom": "^3.0.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.17.0",
     "@types/nodemailer": "^8.0.1",
+    "@types/seedrandom": "^3.0.8",
     "dotenv-cli": "^11.0.0",
     "prisma": "^6.13.0",
     "tsx": "^4.20.3",

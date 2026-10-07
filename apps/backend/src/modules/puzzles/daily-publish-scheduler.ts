@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { Redis } from "ioredis";
 import { createRedisTodayCache, publishDailyPuzzle } from "@redactle/article-ingestion";
+import { ensureCrowdPlay } from "../crowd/seed-crowd-play.js";
 
 export function msUntilNextUtcMidnight(now = new Date()): number {
   const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
@@ -33,6 +34,19 @@ export function startDailyPublishScheduler(options: {
       options.log("daily_publish_failed", {
         reason,
         message: error instanceof Error ? error.message : "Could not publish today's puzzle.",
+      });
+      return;
+    }
+
+    try {
+      const crowdInserted = await ensureCrowdPlay(options.prisma);
+      if (crowdInserted > 0) {
+        options.log("crowd_play_seeded", { reason, inserted: crowdInserted });
+      }
+    } catch (error) {
+      options.log("crowd_play_failed", {
+        reason,
+        message: error instanceof Error ? error.message : "Could not file crowd solves.",
       });
     }
   };
