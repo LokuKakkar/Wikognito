@@ -19,6 +19,9 @@ import { createAuthToken, hashAuthToken, RESET_PASSWORD_TTL_MS, VERIFY_EMAIL_TTL
 const GENERIC_RESET_MESSAGE =
   "If an account exists for this email, a password reset link has been sent.";
 
+/** Off until outbound mail exists. Register and login mark the address verified. */
+const EMAIL_VERIFICATION_ENABLED = false;
+
 function parseAdminEmails(raw: string): Set<string> {
   return new Set(
     raw
@@ -77,6 +80,14 @@ export class AuthService {
     if (!user) {
       throw new AppError("UNAUTHENTICATED", "Authentication required.", 401);
     }
+    if (!EMAIL_VERIFICATION_ENABLED && user.email && !user.emailVerifiedAt) {
+      const verified = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
+        include: { identities: true },
+      });
+      return toMeResponse(verified);
+    }
     return toMeResponse(user);
   }
 
@@ -110,6 +121,7 @@ export class AuthService {
           role,
           email,
           displayName,
+          emailVerifiedAt: EMAIL_VERIFICATION_ENABLED ? null : new Date(),
           identities: {
             create: {
               provider: "EMAIL",
@@ -121,7 +133,9 @@ export class AuthService {
         include: { identities: true },
       });
       await this.claimAnonymousSession(sessionId, user.id);
-      await this.issueToken(user.id, "VERIFY_EMAIL", VERIFY_EMAIL_TTL_MS, email);
+      if (EMAIL_VERIFICATION_ENABLED) {
+        await this.issueToken(user.id, "VERIFY_EMAIL", VERIFY_EMAIL_TTL_MS, email);
+      }
       return toMeResponse(user);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -151,12 +165,16 @@ export class AuthService {
     }
 
     const role = roleForEmail(email, this.adminEmails);
+    const markVerified = !EMAIL_VERIFICATION_ENABLED && !identity.user.emailVerifiedAt;
     const user =
-      identity.user.role === role
+      identity.user.role === role && !markVerified
         ? identity.user
         : await this.prisma.user.update({
             where: { id: identity.userId },
-            data: { role },
+            data: {
+              role,
+              ...(markVerified ? { emailVerifiedAt: new Date() } : {}),
+            },
             include: { identities: true },
           });
     await this.claimAnonymousSession(sessionId, user.id);
@@ -186,7 +204,7 @@ export class AuthService {
       where: { id: userId },
       include: { identities: true },
     });
-    if (!user?.email || user.emailVerifiedAt) {
+    if (!EMAIL_VERIFICATION_ENABLED || !user?.email || user.emailVerifiedAt) {
       return { ok: true };
     }
     const hasPassword = user.identities.some(

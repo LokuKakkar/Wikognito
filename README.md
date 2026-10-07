@@ -58,43 +58,43 @@ Save captures under `docs/screenshots/`, then replace each placeholder with:
 
 _Desk intro: “Today’s case”, puzzle number, Begin the case._
 
-<!-- ![Today’s case](docs/screenshots/todays-case.png) -->
+![Today’s case](docs/screenshots/todays-case.png)
 
 ### The redacted file
 
 _Article with black bars, gold title words, notepad and guess line._
 
-<!-- ![The desk during play](docs/screenshots/desk-play.png) -->
+![The desk during play](docs/screenshots/desk-play.png)
 
 ### Hits in the notes
 
 _Guess history with hits; tapping a word jumps in the article._
 
-<!-- ![Guess notes](docs/screenshots/guess-notes.png) -->
+![Guess notes](docs/screenshots/guess-notes.png)
 
 ### Case closed
 
 _Filed result, stamp, ceremony after a win._
 
-<!-- ![Case closed](docs/screenshots/case-closed.png) -->
+![Case closed](docs/screenshots/case-closed.png)
 
 ### Share card
 
 _Visual share result — no answer in the image._
 
-<!-- ![Share card](docs/screenshots/share-card.png) -->
+![Share card](docs/screenshots/share-card.png)
 
 ### Archive
 
 _Past puzzles, available vs solved folders._
 
-<!-- ![Archive](docs/screenshots/archive.png) -->
+![Archive](docs/screenshots/archive.png)
 
 ### Leaderboard
 
 _Today’s official-win board._
 
-<!-- ![Leaderboard](docs/screenshots/leaderboard.png) -->
+![Leaderboard](docs/screenshots/leaderboard.png)
 
 ### Profile and stats
 

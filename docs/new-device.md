@@ -42,7 +42,7 @@ WIKIPEDIA_USER_AGENT="Wikognito/1.0 (you@example.com)"
 
 Required to start: `DATABASE_URL`, `REDIS_URL`, `NEXT_PUBLIC_API_BASE_URL`.
 
-Google OAuth and `SMTP_URL` are optional locally. Empty SMTP logs verification/reset mail to the backend console. Wikipedia import needs a real `WIKIPEDIA_USER_AGENT` (Wikimedia rejects empty or generic browser UAs).
+Google OAuth and `SMTP_URL` are optional locally. Email verification is off, so new accounts are already verified. Empty SMTP logs password-reset mail to the backend console. Wikipedia import needs a real `WIKIPEDIA_USER_AGENT` (Wikimedia rejects empty or generic browser UAs).
 
 ## 3. Start data stores, migrate, seed
 

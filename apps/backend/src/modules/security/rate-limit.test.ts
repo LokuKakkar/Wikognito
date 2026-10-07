@@ -17,7 +17,7 @@ describe("rateLimitBucket", () => {
     expect(rateLimitBucket("/api/admin/puzzles")).toBe("admin");
     expect(rateLimitBucket("/api/internal/puzzles/publish-today")).toBe("admin");
     expect(rateLimitBucket("/api/puzzles/today")).toBe("public");
-    expect(rateLimitMax("/api/auth/login", config)).toBe(10);
+    expect(rateLimitMax("/api/auth/login", config)).toBe(120);
     expect(rateLimitMax("/api/puzzles/today", config)).toBe(120);
   });
 });

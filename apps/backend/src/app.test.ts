@@ -13,7 +13,7 @@ import { disconnectRedis, getRedis } from "./infrastructure/redis/redis-client.j
 import { AppError } from "./modules/errors.js";
 import type { GoogleOAuthAdapter, GoogleProfile } from "./modules/auth/google-oauth.js";
 import { CapturingMailer } from "./modules/auth/mailer.js";
-import { hashAuthToken } from "./modules/auth/tokens.js";
+import { createAuthToken, hashAuthToken } from "./modules/auth/tokens.js";
 
 class TestGoogleOAuth implements GoogleOAuthAdapter {
   readonly states = new Map<string, string>();
@@ -1386,8 +1386,30 @@ describe("phase 5 archive, history, and accounts", () => {
       cookies: cookies(sessionId),
       payload: { email: "verify-me@example.com", password: "password123" },
     });
-    expect(registered.json().emailVerified).toBe(false);
-    const token = lastMailToken();
+    expect(registered.json().emailVerified).toBe(true);
+    expect(mailer.messages).toHaveLength(0);
+
+    const userId = registered.json().id as string;
+    await prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: null } });
+    const loggedIn = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      cookies: cookies(sessionId),
+      payload: { email: "verify-me@example.com", password: "password123" },
+    });
+    expect(loggedIn.json().emailVerified).toBe(true);
+    expect(mailer.messages).toHaveLength(0);
+
+    await prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: null } });
+    const token = createAuthToken();
+    await prisma.authToken.create({
+      data: {
+        userId,
+        type: "VERIFY_EMAIL",
+        tokenHash: hashAuthToken(token),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
 
     const expired = await app.inject({
       method: "POST",
@@ -1407,13 +1429,22 @@ describe("phase 5 archive, history, and accounts", () => {
     });
     expect(stale.statusCode).toBe(400);
 
-    mailer.messages.length = 0;
-    await app.inject({
+    const fresh = createAuthToken();
+    await prisma.authToken.create({
+      data: {
+        userId,
+        type: "VERIFY_EMAIL",
+        tokenHash: hashAuthToken(fresh),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    const resend = await app.inject({
       method: "POST",
       url: "/api/auth/email/resend",
       cookies: cookies(sessionId),
     });
-    const fresh = lastMailToken();
+    expect(resend.statusCode).toBe(200);
+    expect(mailer.messages).toHaveLength(0);
     const verified = await app.inject({
       method: "POST",
       url: "/api/auth/email/verify",
