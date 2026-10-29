@@ -1,242 +1,101 @@
-# Deployment
+# Deployment (Oracle Cloud Always Free)
 
-Live Render hosting for Wikognito. Credentials stay in the Render dashboard. Do not commit secrets.
-
-What is already running: [what-is-built.md](what-is-built.md). Variable catalog: [environment.md](environment.md).
+Wikognito runs on one Oracle Always Free Arm VM. Docker Compose runs everything behind Caddy on a single origin. Secrets live only in `.env.prod` on the server. Never commit them.
 
 ```text
-GitHub  https://github.com/LokuKakkar/Wikognito.git
-   │
-   ├── Render Web Service → Next.js frontend (apps/frontend, next start)
-   │
-   ├── Render Web Service → Fastify backend (apps/backend, tsx src/server.ts)
-   │
-   ├── Render Postgres → PostgreSQL
-   │
-   └── Render Key Value → Redis-compatible store
+Internet :80/:443
+   └── Caddy (automatic Let's Encrypt)
+         ├── /api/*, /health, /health/ready → backend:4000 (Fastify)
+         └── everything else                → frontend:3002 (Next.js)
+                                      backend → postgres:5432, redis:6379 (internal network only)
 ```
 
-Vercel is not used. No custom domain yet. Docker Compose stays local-only (`pnpm infra:up`). Do not add a `render.yaml` until you choose to.
+Only Caddy publishes ports. Postgres, Redis, the backend and the frontend are reachable only on the internal Docker network. The backend trusts `X-Forwarded-For` in production, so it must never be exposed directly.
 
-All four Render resources must be in the **same region**. Free web services can reach datastores on the private network only in that region. Use **Internal** connection strings, not external ones.
+Files: `Dockerfile` (targets `backend`, `frontend`), `infrastructure/docker/docker-compose.prod.yml`, `infrastructure/docker/Caddyfile`, `.env.production.example`. Local dev (`pnpm infra:up`, `pnpm dev`) is unchanged.
 
-Current production origins:
+## Why one origin
 
-- Frontend: `https://wikognito.onrender.com`
-- Backend: `https://wikognito-api.onrender.com`
+The browser only talks to `https://<domain>`. The session cookie is first-party, so set `SESSION_COOKIE_SAMESITE=lax`. Without that variable the backend keeps its older default (`none` in production, `lax` otherwise), which suits a split frontend/API host deployment but is fragile under third-party-cookie blocking.
 
-Auth and cookies are working on those hosts. A new service would still be `https://<service-name>.onrender.com`. Use the name Render assigns. Do not invent a different URL.
+`FRONTEND_ORIGIN` and `NEXT_PUBLIC_API_BASE_URL` are the same string (scheme + host, no trailing slash). `NEXT_PUBLIC_API_BASE_URL` is inlined into the frontend at **build** time (and into the CSP `connect-src`), so changing the domain means rebuilding the frontend image.
 
-## Services
+## Environment
 
-### PostgreSQL — Render Postgres, Free
+Copy `.env.production.example` to `.env.prod` (mode 600) and fill it in. Names and meaning are listed in that file and in [environment.md](environment.md). Generate secrets with `openssl rand -hex 32`.
 
-- Purpose: articles, puzzles, users, official results.
-- Root directory: not applicable.
-- Build / start: managed. No app command.
-- Required by the backend: `DATABASE_URL` (secret).
-- Health: backend `GET /health/ready` returns 503 when Postgres is down.
-- Free limits: one free database per workspace, 1 GB, expires 30 days after creation, no backups. Upgrade before expiry or the data is deleted after a 14-day grace period.
-
-### Redis — Render Key Value, Free
-
-- Purpose: gameplay sessions, in-progress Google OAuth state, rate-limit counters, puzzle cache. Official results are in Postgres.
-- Required by the backend: `REDIS_URL` (secret). Paste the internal URL exactly (`redis://` or `rediss://`).
-- Health: `/health/ready` stays 200 when Redis is down and reports Redis as `degraded`. Postgres down is the only 503.
-- Free limits: one free instance, memory only. A restart drops sessions and in-progress sign-in. Browser `localStorage` gameplay and Postgres results remain.
-
-### Backend — Render Web Service, Free, Node
-
-- Purpose: Fastify API.
-- Root directory: repository root (the pnpm workspace). Not `apps/backend`.
-- Runtime: Node. Do not use Docker.
-- Build: `pnpm install --frozen-lockfile && pnpm --filter @redactle/backend... build`
-- Pre-deploy: `pnpm db:migrate:deploy`
-- Start: `pnpm --filter @redactle/backend start`
-- Health check path: `/health/ready`
-- `pnpm install` must not use `--prod`. Start runs TypeScript through `tsx`, and migrate uses the Prisma CLI. Both are devDependencies.
-- The process binds `HOST` or `0.0.0.0`, and `PORT` (Render sets `PORT`) or else `BACKEND_PORT` (local default 4000). Do not set `BACKEND_PORT` on Render.
-- Dependencies: Postgres and Key Value internal URLs, then the frontend origin once you have chosen its service name.
-
-Backend environment variables:
-
-| Variable | Secret? | Required? | Where the value comes from |
-| --- | --- | --- | --- |
-| `NODE_ENV` | No | Yes | Set to `production` |
-| `DATABASE_URL` | Yes | Yes | Render Postgres, Internal Database URL |
-| `REDIS_URL` | Yes | Yes | Render Key Value, Internal Redis URL |
-| `FRONTEND_ORIGIN` | No | Yes | `https://<frontend-service-name>.onrender.com` with no trailing slash |
-| `GOOGLE_CLIENT_ID` | No | For Google sign-in | Google Cloud OAuth client |
-| `GOOGLE_CLIENT_SECRET` | Yes | For Google sign-in | Google Cloud OAuth client |
-| `GOOGLE_REDIRECT_URI` | No | For Google sign-in | `https://<backend-service-name>.onrender.com/api/auth/google/callback` |
-| `GOOGLE_ADMIN_EMAILS` | Yes | For admin | Comma-separated Google emails you choose |
-| `PUBLISH_SECRET` | Yes | For external daily publish | A long random string you generate. Empty disables the HTTP publish route |
-| `SMTP_URL` | Yes | No | Leave empty on the free tier. Render free blocks outbound ports 25, 465, and 587. Mail is written to logs |
-| `WIKIPEDIA_USER_AGENT` | No | For Wikipedia import | `Wikognito/1.0 (https://<frontend-service-name>.onrender.com; you@example.com)` |
-| `LOG_LEVEL` | No | No | `info` |
-
-Do not set `PORT` or `HOST` yourself. Render sets `PORT`.
-
-### Frontend — Render Web Service, Free, Node
-
-- Purpose: Next.js App Router. This is a Node server, not a static site. Static Site hosting will not run `next start`.
-- Root directory: repository root.
-- Build: `pnpm install --frozen-lockfile && pnpm --filter @redactle/frontend... build`
-- Start: `pnpm --filter @redactle/frontend start`
-- Health check: none required. The site should load in a browser.
-- `NEXT_PUBLIC_API_BASE_URL` is inlined at **build** time, including Content-Security-Policy `connect-src`. Set it before the first build. Changing it requires a new build (clear the build cache if Render reuses an old one).
-
-Frontend environment variables:
-
-| Variable | Secret? | Required? | Where the value comes from |
-| --- | --- | --- | --- |
-| `NODE_ENV` | No | Yes | Set to `production` |
-| `NEXT_PUBLIC_API_BASE_URL` | No | Yes | `https://<backend-service-name>.onrender.com` with no trailing slash. Set before build |
-| `NEXT_PUBLIC_ILLUSTRATIONS_PACK` | No | No | `none` |
-
-## Health
-
-| Path | Meaning |
-| --- | --- |
-| `GET /health` | Process is up. No dependency checks. `{ "status": "ok" }` |
-| `GET /health/ready` | 200 if Postgres is up. Redis may be `degraded`. 503 only if Postgres is down |
-
-Responses do not include connection strings.
-
-## Cookies and CORS
-
-Production CORS allows only `FRONTEND_ORIGIN`, with credentials. It does not use `*`.
-
-The session cookie is `redactle_session`: `HttpOnly`, `Path=/`, `SameSite=Lax`, `Secure` in production, no `Domain` (host-only on the API). The browser sends it with `credentials: "include"` because both hosts are `*.onrender.com` (same site). Keep `SameSite=Lax`. Do not switch to `None` for this setup.
-
-`NODE_ENV=production` also makes Fastify trust Render's forwarded client IP for rate limits.
-
-## Prisma
-
-From the repository root, with `DATABASE_URL` already in the environment:
+Commands below use a shorthand:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm --filter @redactle/backend prisma:generate
-pnpm db:migrate:deploy
+dc() { docker compose -f infrastructure/docker/docker-compose.prod.yml --env-file .env.prod "$@"; }
 ```
 
-`pnpm db:migrate:deploy` runs `prisma migrate deploy`. Locally it loads the repo `.env` when that file exists. On Render there is no `.env`; the pre-deploy command uses the dashboard environment. Do not run `pnpm db:migrate` or `prisma migrate dev` against production. Do not auto-rollback migrations.
+If `.env.prod` is elsewhere, set `WIKOGNITO_ENV_FILE` (the backend `env_file`) and pass the same path to `--env-file`.
 
-`postinstall` in `@redactle/backend` also runs `prisma generate`.
+## First deploy
 
-## Manual OAuth Configuration
+1. Create the VM and network (Oracle console): A1.Flex, 2 OCPU / 12 GB, Ubuntu 24.04 aarch64, security list ingress for TCP 80 and 443 (and 22 from your IP only). Do not open 5432, 6379, 4000 or 3002.
+2. On the VM, open the host firewall too (Oracle's Ubuntu image rejects everything but SSH):
+   ```bash
+   sudo iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT
+   sudo iptables -I INPUT 5 -p tcp --dport 443 -j ACCEPT
+   sudo netfilter-persistent save
+   ```
+   Check the position with `sudo iptables -L INPUT -n --line-numbers`: the rules must sit before the REJECT rule.
+3. Install Docker Engine + compose plugin (official Docker apt repo), git, and 2-4 GB swap (`next build` peaks at 2-3 GB).
+4. Point DNS (DuckDNS) at the VM's public IP. Caddy cannot issue a certificate until DNS resolves and port 80 is reachable.
+5. `git clone` the repo, copy `.env.production.example` to `.env.prod`, fill it in.
+6. Copy the data that is not in git: article snapshots to `ARTICLES_DIR`, dossier JSON to `CORPUS_DIR`. The backend container runs as uid 1000; make `ARTICLES_DIR` writable by it (`sudo chown 1000 <dir>`) so imports can write snapshots.
+7. Start: `dc up -d --build`. The `migrate` service runs `prisma migrate deploy` and exits 0 before the backend starts.
+8. Load data: `infrastructure/docker/scripts/bootstrap-data.sh` (restore snapshots, generate and validate puzzles, seed dossiers, publish today). Safe to re-run.
+9. Verify: `curl https://<domain>/health/ready` returns `postgres: ok, redis: ok`, and `/api/puzzles/today` returns a puzzle.
 
-The callback route in code is `GET /api/auth/google/callback`. After Google succeeds, the API redirects to `FRONTEND_ORIGIN/`.
+Never run `pnpm db:seed` in production: it creates public demo accounts (`admin@redactle.local`). Admin access comes from `GOOGLE_ADMIN_EMAILS`.
 
-In Google Cloud Console, on the OAuth Web client:
+## Google sign-in
 
-- Authorized redirect URI: `https://<backend-service-name>.onrender.com/api/auth/google/callback`
-- Authorized JavaScript origin: `https://<frontend-service-name>.onrender.com`
+In the Google Cloud OAuth web client add:
 
-Set the same callback on the backend as `GOOGLE_REDIRECT_URI`. It must match character for character. Keep the local redirect URI (`http://localhost:4000/api/auth/google/callback`) if you still sign in locally.
+- Authorized JavaScript origin: `https://<domain>`
+- Authorized redirect URI: `https://<domain>/api/auth/google/callback`
 
-Gameplay does not require Google. Email/password and anonymous play work without these values. Admin import uses `GOOGLE_ADMIN_EMAILS`.
+Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, the same `GOOGLE_REDIRECT_URI`, and `GOOGLE_ADMIN_EMAILS` in `.env.prod`. If the consent screen is in Testing, only listed test users can sign in.
 
 ## Daily puzzle
 
-Free web services have no shell and no cron. They also sleep after 15 minutes without traffic.
+No cron is needed. The API publishes today's puzzle at startup and at 00:00 UTC, and `GET /api/puzzles/today` publishes lazily if none exists. Keep the VM clock on UTC.
 
-Load the first articles from the admin UI (`/admin/articles`, `/admin/puzzles`) after an admin Google sign-in. The API assigns today's puzzle on startup, at 00:00 UTC while the process is awake, and on `GET /api/puzzles/today` when that UTC date has no assignment. An empty READY pool returns 404 for today.
-
-Free Render has no cron and sleeps when idle, so the request path is what publishes after a night with no traffic. An external scheduler is optional:
+## Updating
 
 ```bash
-curl -X POST "https://<backend-service-name>.onrender.com/api/internal/puzzles/publish-today" \
-  -H "Authorization: Bearer <PUBLISH_SECRET>"
+git pull
+dc up -d --build
 ```
 
-503 means `PUBLISH_SECRET` is unset. 401 means the token does not match. Retries after a successful publish return `ALREADY_PUBLISHED`. `NO_CANDIDATE` means the unused READY pool is empty or invalid — do not invent a fallback puzzle.
+Migrations are forward-only (`migrate deploy`). Never use `migrate dev`, `db push` or `db reset`, and never `docker compose down -v` (it deletes the Postgres volume). Rollback: check out the previous commit and run `dc up -d --build`; fix schema problems forward with a new migration.
 
-To populate production dossiers without SSH: sign in as admin and use `/admin/dossiers` / `POST /api/admin/corpus`, or run `pnpm dossiers:seed` locally with the Render **external** `DATABASE_URL` and `WIKIPEDIA_USER_AGENT`.
+## Backups
 
-## Local development
+Postgres is self-managed, so backups are mandatory. See [operations.md](operations.md#backups). Also keep copies off Oracle of the latest dump, the article snapshots, the corpus JSON, and `.env.prod`.
 
-Unchanged. `pnpm infra:up`, `cp .env.example .env`, `pnpm db:migrate`, `pnpm dev`. Frontend dev stays on port 3002. `pnpm --filter @redactle/frontend start` uses port 3002 unless `PORT` is set.
+## Local production test
 
-## Rollback
+To exercise the production containers on a laptop, use `wikognito.localtest.me` (resolves to 127.0.0.1) with a self-signed cert:
 
-- App: redeploy the previous git revision and restart both web services.
-- Database: do not auto-rollback Prisma. Restore is unavailable on free Postgres. Ship a forward-fix migration.
-- Redis: safe to lose. Durable data is in Postgres.
+```text
+SITE_ADDRESS=wikognito.localtest.me
+CADDY_TLS=tls internal
+HTTP_PORT=18080            # only if 80/443 are taken locally
+HTTPS_PORT=18443
+NEXT_PUBLIC_API_BASE_URL=https://wikognito.localtest.me:18443
+FRONTEND_ORIGIN=https://wikognito.localtest.me:18443
+```
 
-# MANUAL ACTIONS REQUIRED
+`dc up -d --build`, then open `https://wikognito.localtest.me:18443` and accept the certificate warning once. Do not use `localhost` as `FRONTEND_ORIGIN`: production mode rejects it.
 
-Do these in order. Values below are placeholders. Copy the real strings from each dashboard. Do not put them in git.
+## Notes
 
-1. Confirm the GitHub repository.
-   - WHERE: GitHub
-   - WHAT TO CLICK/CREATE: The existing repo `LokuKakkar/Wikognito` is already the git remote. Push this branch if Render should build it.
-   - VALUE TO COPY: the repository URL
-   - WHERE TO PUT IT: Render, when connecting the service
-
-2. Create a Render account.
-   - WHERE: https://dashboard.render.com
-   - WHAT TO CLICK/CREATE: Sign up. No credit card is required for free instances.
-   - VALUE TO COPY: none
-   - WHERE TO PUT IT: nowhere
-
-3. Create PostgreSQL.
-   - WHERE: Render Dashboard → New → Postgres
-   - WHAT TO CLICK/CREATE: Name it, pick a region, instance type Free. Create it.
-   - VALUE TO COPY: **Internal Database URL**
-   - WHERE TO PUT IT: backend service environment variable `DATABASE_URL`
-
-4. Create Redis.
-   - WHERE: Render Dashboard → New → Key Value
-   - WHAT TO CLICK/CREATE: Same region as Postgres. Instance type Free.
-   - VALUE TO COPY: **Internal Redis URL** (`redis://` or `rediss://` as shown)
-   - WHERE TO PUT IT: backend `REDIS_URL`
-
-5. Choose both web service names before creating them.
-   - WHERE: a note on your side, then the Render create form
-   - WHAT TO CLICK/CREATE: Two names. The public origins will be `https://<backend-name>.onrender.com` and `https://<frontend-name>.onrender.com`.
-   - VALUE TO COPY: those two origins, with no trailing slash
-   - WHERE TO PUT IT: backend `FRONTEND_ORIGIN` and `GOOGLE_REDIRECT_URI`; frontend `NEXT_PUBLIC_API_BASE_URL`
-
-6. Create the backend web service.
-   - WHERE: Render Dashboard → New → Web Service → this GitHub repo
-   - WHAT TO CLICK/CREATE: Node, Free, same region, root directory empty (repo root). Build `pnpm install --frozen-lockfile && pnpm --filter @redactle/backend... build`. Pre-deploy `pnpm db:migrate:deploy`. Start `pnpm --filter @redactle/backend start`. Health check path `/health/ready`.
-   - VALUE TO COPY: the live backend origin after the first healthy deploy
-   - WHERE TO PUT IT: confirm it matches `https://<backend-name>.onrender.com`. Put that origin in the frontend variable in the next step.
-
-7. Enter backend environment variables.
-   - WHERE: backend service → Environment
-   - WHAT TO CLICK/CREATE: `NODE_ENV`, `DATABASE_URL`, `REDIS_URL`, `FRONTEND_ORIGIN`. Add Google variables in step 9. Add `PUBLISH_SECRET` if you will schedule publish. Leave `SMTP_URL` empty. Do not set `PORT`.
-   - VALUE TO COPY: none from here
-   - WHERE TO PUT IT: this service only. Trigger a deploy after saving.
-
-8. Create the frontend web service.
-   - WHERE: Render Dashboard → New → Web Service (not Static Site)
-   - WHAT TO CLICK/CREATE: Same repo, Node, Free, same region, repo root. Build `pnpm install --frozen-lockfile && pnpm --filter @redactle/frontend... build`. Start `pnpm --filter @redactle/frontend start`. Before the first build, set `NODE_ENV=production`, `NEXT_PUBLIC_API_BASE_URL` to the backend origin, and `NEXT_PUBLIC_ILLUSTRATIONS_PACK=none`.
-   - VALUE TO COPY: the live frontend origin
-   - WHERE TO PUT IT: backend `FRONTEND_ORIGIN` if the name differs from what you predicted. Redeploy the backend after any change.
-
-9. Configure Google OAuth.
-   - WHERE: Google Cloud Console → APIs & Services → Credentials → OAuth client (Web)
-   - WHAT TO CLICK/CREATE: Authorized JavaScript origin = frontend origin. Authorized redirect URI = `https://<backend-name>.onrender.com/api/auth/google/callback`.
-   - VALUE TO COPY: Client ID and Client secret
-   - WHERE TO PUT IT: backend `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (the same callback URL), and `GOOGLE_ADMIN_EMAILS` (your Google email). Redeploy the backend.
-
-10. Test production login.
-    - WHERE: the frontend origin, `/login`
-    - WHAT TO CLICK/CREATE: Sign in with Google, then sign out, then refresh. The session cookie should persist across refresh.
-    - VALUE TO COPY: none
-    - WHERE TO PUT IT: nowhere
-
-11. Load a puzzle.
-    - WHERE: `/admin/articles` and `/admin/puzzles` on the frontend, signed in as an admin email
-    - WHAT TO CLICK/CREATE: Import at least one Wikipedia article, generate and validate a puzzle, publish today.
-    - VALUE TO COPY: none
-    - WHERE TO PUT IT: nowhere. Then open `/` and confirm today's case loads, a guess works, and refresh keeps the attempt.
-
-12. Schedule daily publish.
-    - WHERE: an external HTTPS cron you control
-    - WHAT TO CLICK/CREATE: `POST` the backend `/api/internal/puzzles/publish-today` shortly after 00:00 UTC, header `Authorization: Bearer <PUBLISH_SECRET>`
-    - VALUE TO COPY: none into git
-    - WHERE TO PUT IT: the scheduler's secret storage, and backend `PUBLISH_SECRET` if not set yet
+- Always Free compute can be reclaimed when idle (7 days of low CPU, network and memory). Check Oracle's current rules; the backups are the recovery path.
+- Outbound mail: leave `SMTP_URL` empty to log password-reset links to `dc logs backend`. OCI blocks port 25; use 587 or 465 if a provider is added later, and URL-encode credentials in `SMTP_URL`.
+- Architecture and the full migration rationale: [oracle-deployment-plan.md](oracle-deployment-plan.md).
+- The previous Render setup (separate frontend and API hosts, `SameSite=None`) is retired.

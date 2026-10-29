@@ -143,6 +143,19 @@ Local URLs after `pnpm dev`:
 
 | Piece | Production |
 |-------|------------|
+| Host | One Oracle Always Free Arm VM (2 OCPU / 12 GB), Docker Compose, see [deployment.md](deployment.md) |
+| Proxy / TLS | Caddy with automatic Let's Encrypt, one public origin |
+| Frontend | Next.js container, `next start` |
+| Backend | Fastify container, `tsx src/server.ts` |
+| PostgreSQL | Postgres 16 container on the VM, nightly `pg_dump` backups |
+| Redis | Redis 7 container (memory-capped; flush drops sessions, not official results) |
+| Source | GitHub `LokuKakkar/Wikognito` |
+| Mail | Console logs |
+| Compose | `infrastructure/docker/docker-compose.prod.yml` (production); `docker-compose.yml` is local Postgres + Redis only |
+
+`NEXT_PUBLIC_API_BASE_URL` and `FRONTEND_ORIGIN` are the same origin (inlined at frontend build), and the Google redirect is `https://<domain>/api/auth/google/callback`.
+
+-------|------------|
 | Frontend | Render Web Service `wikognito`, `next start` |
 | Backend | Render Web Service `wikognito-api`, `tsx src/server.ts` |
 | PostgreSQL | Render Postgres (free; no backups, expires) |
