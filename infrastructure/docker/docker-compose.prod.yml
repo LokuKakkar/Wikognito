@@ -1,0 +1,140 @@
+# Production stack: Caddy (80/443) -> frontend + backend, with Postgres and Redis on an
+# internal network. Run from the repo root:
+#
+#   docker compose --env-file .env.prod -f infrastructure/docker/docker-compose.prod.yml up -d --build
+#
+# Never use `down -v` on the server: it deletes the Postgres volume.
+
+name: wikognito
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      # Host ports are overridable only for local testing; keep 80/443 on the server.
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS}
+      # Local testing sets CADDY_TLS="tls internal"; empty means automatic Let's Encrypt.
+      CADDY_TLS: ${CADDY_TLS:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    networks: [internal]
+    mem_limit: 256m
+    logging: *logging
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?set NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_ILLUSTRATIONS_PACK: ${NEXT_PUBLIC_ILLUSTRATIONS_PACK:-none}
+    restart: unless-stopped
+    networks: [internal]
+    mem_limit: 1g
+    logging: *logging
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: backend
+    restart: unless-stopped
+    env_file: ${WIKOGNITO_ENV_FILE:-../../.env.prod}
+    environment:
+      NODE_ENV: production
+      ARTICLE_BACKUP_DIR: /data/wikipedia-articles
+    volumes:
+      - ${ARTICLES_DIR:-./data/articles}:/data/wikipedia-articles
+      - ${CORPUS_DIR:-./data/corpus}:/data/corpus:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [internal]
+    mem_limit: 1g
+    logging: *logging
+
+  # Applies pending Prisma migrations (`migrate deploy` only) before the backend starts.
+  migrate:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: backend
+    restart: "no"
+    env_file: ${WIKOGNITO_ENV_FILE:-../../.env.prod}
+    command: ["pnpm", "db:migrate:deploy"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+    logging: *logging
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - max_connections=50
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    mem_limit: 2g
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru", "--save", "300", "10"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    mem_limit: 256m
+    logging: *logging
+
+networks:
+  internal:
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pg_data:
+  redis_data:
