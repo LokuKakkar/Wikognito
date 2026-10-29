@@ -37,7 +37,11 @@ import type { WikipediaPageFetcher } from "@redactle/article-ingestion";
 import { WikipediaArticleProvider } from "@redactle/article-provider";
 import type { AppConfig } from "./infrastructure/config/env.js";
 import { getPrisma, checkPostgresHealth } from "./infrastructure/postgres/prisma.js";
-import { checkRedisHealth, getRedis, tryConnectRedis } from "./infrastructure/redis/redis-client.js";
+import {
+  checkRedisHealth,
+  getRedis,
+  tryConnectRedis,
+} from "./infrastructure/redis/redis-client.js";
 import { readinessFromDependencies, toSafeDependency } from "./infrastructure/health.js";
 import { logger } from "./infrastructure/logger.js";
 import { PuzzleRepository } from "./modules/puzzles/puzzle.repository.js";
@@ -209,7 +213,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     sessionRepo,
     gameRepo,
     config.GOOGLE_ADMIN_EMAILS,
-    deps.mailer ?? createMailer(config.SMTP_URL),
+    deps.mailer ?? createMailer(config.SMTP_URL, config.SMTP_FROM),
     config.FRONTEND_ORIGIN,
   );
   const googleOAuth: GoogleOAuthAdapter =
@@ -234,7 +238,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       reply.setCookie(config.SESSION_COOKIE_NAME, sessionId, {
         path: "/",
         httpOnly: true,
-        sameSite: config.NODE_ENV === "production" ? "none" : "lax",
+        sameSite:
+          config.SESSION_COOKIE_SAMESITE ?? (config.NODE_ENV === "production" ? "none" : "lax"),
         secure: config.NODE_ENV === "production",
         maxAge: config.SESSION_TTL_SECONDS,
       });
@@ -262,7 +267,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         status: mapped.statusCode,
       });
     }
-    return reply.status(mapped.statusCode).header("X-Request-Id", reply.request.id).send(mapped.body);
+    return reply
+      .status(mapped.statusCode)
+      .header("X-Request-Id", reply.request.id)
+      .send(mapped.body);
   }
 
   app.setErrorHandler((error, _request, reply) => {
@@ -375,7 +383,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           error: { code: "INVALID_REQUEST", message: "Invalid dossier list query." },
         });
       }
-      return await dossierService.listPublished(parsed.data.page, parsed.data.pageSize, parsed.data.q);
+      return await dossierService.listPublished(
+        parsed.data.page,
+        parsed.data.pageSize,
+        parsed.data.q,
+      );
     } catch (error) {
       return mapError(error, reply);
     }
@@ -893,7 +905,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           });
         }
         if (item.puzzleStatus === "generated") {
-          logger.info("corpus_puzzle_generated", { requestId: request.id, puzzleId: item.puzzleId });
+          logger.info("corpus_puzzle_generated", {
+            requestId: request.id,
+            puzzleId: item.puzzleId,
+          });
         } else if (item.puzzleStatus === "failed") {
           logger.warn("corpus_puzzle_failed", {
             requestId: request.id,
@@ -1047,7 +1062,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           error: { code: "INVALID_REQUEST", message: "Invalid dossier case reorder." },
         });
       }
-      return await dossierService.reorderCase(params.data.id, params.data.caseId, body.data.position);
+      return await dossierService.reorderCase(
+        params.data.id,
+        params.data.caseId,
+        body.data.position,
+      );
     } catch (error) {
       return mapError(error, reply);
     }

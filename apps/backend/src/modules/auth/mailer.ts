@@ -16,23 +16,26 @@ export class ConsoleMailer implements Mailer {
 }
 
 export class SmtpMailer implements Mailer {
-  constructor(private readonly smtpUrl: string) {}
+  constructor(
+    private readonly smtpUrl: string,
+    private readonly from: string = "wikognito@localhost",
+  ) {}
 
   async send(message: MailMessage): Promise<void> {
     const nodemailer = await import("nodemailer");
     const transport = nodemailer.createTransport(this.smtpUrl);
     await transport.sendMail({
       to: message.to,
-      from: "wikognito@localhost",
+      from: this.from,
       subject: message.subject,
       text: message.text,
     });
   }
 }
 
-export function createMailer(smtpUrl?: string): Mailer {
+export function createMailer(smtpUrl?: string, from?: string): Mailer {
   if (smtpUrl) {
-    return new SmtpMailer(smtpUrl);
+    return new SmtpMailer(smtpUrl, from);
   }
   return new ConsoleMailer();
 }
