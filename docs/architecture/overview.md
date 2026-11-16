@@ -2,7 +2,7 @@
 
 Public product name: **Wikognito**. Short production summary: [docs/architecture.md](../architecture.md). What exists today: [docs/what-is-built.md](../what-is-built.md).
 
-Production is two Render web services plus Render Postgres and Render Key Value. Origins: `https://wikognito.onrender.com` and `https://wikognito-api.onrender.com`. One API process, one frontend, one Postgres, one Redis.
+Production is one Oracle Always Free VM running Docker Compose: Caddy, the Next.js frontend, the Fastify API, Postgres and Redis behind a single origin (see [deployment.md](../deployment.md)). One API process, one frontend, one Postgres, one Redis.
 
 ## Components
 

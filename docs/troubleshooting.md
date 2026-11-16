@@ -26,7 +26,7 @@ Verification email is off. Register, login, and `/api/me` mark the address verif
 
 ## 429 Too many requests
 
-Auth, game sync/complete, admin, and public reads are rate-limited per minute. Auth (including register) allows 120 requests per minute per IP by default. Raise `RATE_LIMIT_*` if a shared NAT still hits the ceiling. If Render has `RATE_LIMIT_AUTH_MAX` set, that value overrides the code default.
+Auth, game sync/complete, admin, and public reads are rate-limited per minute. Auth (including register) allows 120 requests per minute per IP by default. Raise `RATE_LIMIT_*` if a shared NAT still hits the ceiling. If `.env.prod` sets `RATE_LIMIT_AUTH_MAX`, that value overrides the code default.
 
 ## CORS / cookies in production
 

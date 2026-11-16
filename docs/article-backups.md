@@ -86,8 +86,8 @@ If today’s DailyPuzzle already exists, publish returns `ALREADY_PUBLISHED` and
 
 Same snapshots, production database.
 
-1. Copy the JSON onto the server (or object storage, then download).
-2. Set `ARTICLE_BACKUP_DIR` if the path is not `data/wikipedia-articles`.
+1. Copy the JSON onto the server (or object storage, then download) into `ARTICLES_DIR`.
+2. On the Oracle stack run `infrastructure/docker/scripts/bootstrap-data.sh`, which restores, generates and publishes (see [deployment.md](deployment.md)).
 3. Ensure production `DATABASE_URL` is set and migrations have run (`pnpm db:migrate:deploy`).
 4. `pnpm articles:restore`
 5. `pnpm puzzles:generate -- --all` and `pnpm puzzles:validate`
