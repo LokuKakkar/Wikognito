@@ -145,3 +145,56 @@ Postgres runs in the production compose stack, so it needs its own backups.
 - **Restore drill:** `infrastructure/docker/backup/restore-drill.sh <dump>` restores into a throwaway Postgres container and prints row counts. Run it after setting backups up and about once a quarter.
 - Real restore: stop the backend, restore the dump into a fresh Postgres volume with `pg_restore`, start the backend.
 - Keep an occasional copy of a dump off Oracle, for example monthly from your laptop: `scp -i <key> "ubuntu@<ip>:/srv/wikognito/backups/*.dump" ~/wikognito-backups/`. Dumps contain user emails and password hashes, so keep them private.
+
+## Production runbook (Oracle VM)
+
+Run these on the VM in the repo folder (`~/Wikognito`) with the `dc` shortcut from [deployment.md](deployment.md#environment). The live site is `https://wikognito.duckdns.org`.
+
+**Update the site**
+
+```bash
+cd ~/Wikognito && git pull --ff-only
+dc up -d --build          # skip --build if only docs changed
+curl -sS https://wikognito.duckdns.org/health/ready
+```
+
+Migrations run automatically through the `migrate` service. If you change `NEXT_PUBLIC_API_BASE_URL` (a domain change), rebuild the frontend without cache: `dc build --no-cache frontend && dc up -d`.
+
+**Look at logs and status**
+
+```bash
+dc ps
+dc logs -f backend        # also where password-reset links appear while SMTP_URL is empty
+dc logs caddy | tail -30
+```
+
+**Restore from a dump** (same `pg_restore` as the restore drill; run the drill first on the dump you intend to use, and take a fresh backup of the current state if it still works)
+
+```bash
+dc stop frontend backend
+dc exec -T postgres sh -c 'dropdb -U "$POSTGRES_USER" --if-exists "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+dc exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' < /srv/wikognito/backups/<dump>
+dc up -d
+```
+
+Never use `dc down -v`: it deletes the Postgres volume.
+
+**Rotate a secret** (`GOOGLE_CLIENT_SECRET`, `PUBLISH_SECRET`, `SMTP_URL`)
+
+Edit `.env.prod`, then `dc up -d backend` (compose recreates the container when its environment changes). Changing `POSTGRES_PASSWORD` is different: also run `ALTER USER` inside Postgres and update `DATABASE_URL` to match, or the backend cannot connect.
+
+**Add or refresh a dossier**
+
+Copy the JSON to `/srv/wikognito/corpus/`, then:
+
+```bash
+dc run --rm --no-deps backend pnpm dossiers:seed --file /data/corpus/<file>.json
+```
+
+Missing articles are imported from Wikipedia and snapshotted into `/srv/wikognito/articles`. The admin UI (`/admin/dossiers`) works too.
+
+**Server health**
+
+- `free -h`, `df -h /`, and `docker system df` for memory and disk. Prune old build cache with `docker builder prune` if the disk gets tight.
+- Check Billing → Cost Analysis occasionally; it should stay at $0.
+- If SSH stops working after your home IP changes, update the `/32` SSH rule in the VCN security list.
