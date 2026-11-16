@@ -44,10 +44,10 @@ If `.env.prod` is elsewhere, set `WIKOGNITO_ENV_FILE` (the backend `env_file`) a
    Check the position with `sudo iptables -L INPUT -n --line-numbers`: the rules must sit before the REJECT rule.
 3. Install Docker Engine + compose plugin (official Docker apt repo), git, and 2-4 GB swap (`next build` peaks at 2-3 GB).
 4. Point DNS (DuckDNS) at the VM's public IP. Caddy cannot issue a certificate until DNS resolves and port 80 is reachable.
-5. `git clone` the repo, copy `.env.production.example` to `.env.prod`, fill it in.
-6. Copy the data that is not in git: article snapshots to `ARTICLES_DIR`, dossier JSON to `CORPUS_DIR`. The backend container runs as uid 1000; make `ARTICLES_DIR` writable by it (`sudo chown 1000 <dir>`) so imports can write snapshots.
+5. `git clone` the repo, then `cp .env.production.example .env.prod`, `chmod 600 .env.prod`, and fill it in. Keep `.env.prod` in the repo folder (the compose file reads `../../.env.prod`). Replace `change-me` with a generated password in both `POSTGRES_PASSWORD` and `DATABASE_URL` (`openssl rand -hex 24` is URL-safe). Add a `dc` shortcut to `~/.bashrc` (see Environment).
+6. Create `/srv/wikognito/{articles,corpus,backups}` and copy the data that is not in git: article snapshots to `ARTICLES_DIR`, dossier JSON to `CORPUS_DIR`. The backend container runs as uid 1000, which is not your login user on Oracle's Ubuntu image (`ubuntu` is 1001; uid 1000 is `opc`). Share the articles directory so both can write: `sudo chown ubuntu:1000 /srv/wikognito/articles && sudo chmod 2775 /srv/wikognito/articles`, and `chmod 664` the copied JSON so the container can overwrite snapshots.
 7. Start: `dc up -d --build`. The `migrate` service runs `prisma migrate deploy` and exits 0 before the backend starts.
-8. Load data: `infrastructure/docker/scripts/bootstrap-data.sh` (restore snapshots, generate and validate puzzles, seed dossiers, publish today). Safe to re-run.
+8. Load data: `export CORPUS_DIR=/srv/wikognito/corpus` (the script reads it as a shell variable, not from `.env.prod`), then `infrastructure/docker/scripts/bootstrap-data.sh` (restore snapshots, generate and validate puzzles, seed dossiers, publish today). Safe to re-run.
 9. Verify: `curl https://<domain>/health/ready` returns `postgres: ok, redis: ok`, and `/api/puzzles/today` returns a puzzle.
 
 Never run `pnpm db:seed` in production: it creates public demo accounts (`admin@redactle.local`). Admin access comes from `GOOGLE_ADMIN_EMAILS`.
@@ -60,6 +60,8 @@ In the Google Cloud OAuth web client add:
 - Authorized redirect URI: `https://<domain>/api/auth/google/callback`
 
 Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, the same `GOOGLE_REDIRECT_URI`, and `GOOGLE_ADMIN_EMAILS` in `.env.prod`. If the consent screen is in Testing, only listed test users can sign in.
+
+`Error 400: redirect_uri_mismatch` means the URI the backend sent is not registered on the OAuth client. Add exactly `https://<domain>/api/auth/google/callback` (https, no trailing slash) to **that** client under Credentials, save, and retry after a few minutes in a private window.
 
 ## Daily puzzle
 
