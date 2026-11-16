@@ -40,6 +40,12 @@ const EnvSchema = z.object({
   FRONTEND_ORIGIN: z.string().optional().default(FRONTEND_ORIGIN_DEFAULT),
   GOOGLE_ADMIN_EMAILS: z.string().optional().default(""),
   SMTP_URL: z.string().optional().default(""),
+  SMTP_FROM: z.string().optional().default("Wikognito <wikognito@localhost>"),
+  /** Defaults to "none" in production (cross-site split deploy) and "lax" otherwise. */
+  SESSION_COOKIE_SAMESITE: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(["lax", "none", "strict"]).optional(),
+  ),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   PUBLISH_SECRET: z.string().optional().default(""),
   RATE_LIMIT_ENABLED: optionalBoolean,

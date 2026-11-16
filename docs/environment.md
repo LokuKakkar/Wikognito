@@ -24,7 +24,7 @@ The catalog lives in [`.env.example`](../.env.example). Copy it to `.env`. Never
 | Name | Secret | Purpose |
 |------|--------|---------|
 | `BACKEND_PORT` | no | Listen port when `PORT` is unset (default 4000) |
-| `PORT` | no | Platform listen port. Render sets it. Overrides `BACKEND_PORT` |
+| `PORT` | no | Platform listen port, if the host sets one. Overrides `BACKEND_PORT` |
 | `HOST` | no | Listen address (default `0.0.0.0`) |
 | `SESSION_COOKIE_NAME` | no | Internal cookie name (`redactle_session`) |
 | `SESSION_TTL_SECONDS` | no | Session TTL |
@@ -32,6 +32,8 @@ The catalog lives in [`.env.example`](../.env.example). Copy it to `.env`. Never
 | `GOOGLE_REDIRECT_URI` | no | OAuth callback |
 | `GOOGLE_ADMIN_EMAILS` | yes | Admin allowlist |
 | `SMTP_URL` | yes | Mail; empty logs to console |
+| `SMTP_FROM` | no | From header for outgoing mail (only used with `SMTP_URL`) |
+| `SESSION_COOKIE_SAMESITE` | no | `lax`, `none` or `strict`. Default `none` in production, `lax` otherwise. Use `lax` when frontend and API share one origin |
 | `PUBLISH_SECRET` | yes | HTTP daily-publish fallback |
 | `LOG_LEVEL` | no | `debug` / `info` / `warn` / `error` |
 | `RATE_LIMIT_*` | no | Per-minute ceilings |

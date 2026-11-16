@@ -1,0 +1,14 @@
+# One public origin: the API and health checks go to the backend, the rest to Next.js.
+# SITE_ADDRESS: wikognito.duckdns.org on the VM; wikognito.localtest.me for local tests.
+{$SITE_ADDRESS} {
+	{$CADDY_TLS:}
+	encode zstd gzip
+
+	@backend path /api/* /health /health/ready
+	handle @backend {
+		reverse_proxy backend:4000
+	}
+	handle {
+		reverse_proxy frontend:3002
+	}
+}

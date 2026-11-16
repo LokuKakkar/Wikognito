@@ -3,7 +3,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { FastifyInstance } from "fastify";
 import { PrismaClient } from "@prisma/client";
 import { createArticleProvider, WikipediaProviderError } from "@redactle/article-provider";
-import { runIngestionPipeline, persistPipelineResult, publishDailyPuzzle } from "@redactle/article-ingestion";
+import {
+  runIngestionPipeline,
+  persistPipelineResult,
+  publishDailyPuzzle,
+} from "@redactle/article-ingestion";
 import { REDIS_PUZZLE_TODAY_KEY } from "@redactle/shared";
 import { decodeClientPayload } from "@redactle/puzzle-engine";
 import { loadConfig } from "./infrastructure/config/env.js";
@@ -56,7 +60,9 @@ let puzzleId = "";
 let adminSession = "";
 const fetchPage = vi.fn();
 
-async function cookieFrom(res: { cookies: Array<{ name: string; value: string }> }): Promise<string> {
+async function cookieFrom(res: {
+  cookies: Array<{ name: string; value: string }>;
+}): Promise<string> {
   const cookie = res.cookies.find((entry) => entry.name === config.SESSION_COOKIE_NAME);
   if (!cookie?.value) {
     throw new Error("Missing session cookie");
@@ -127,7 +133,11 @@ beforeAll(async () => {
   const article = (await provider.getArticles())[0]!;
   const scheduledDate = new Date();
   const dateOnly = new Date(
-    Date.UTC(scheduledDate.getUTCFullYear(), scheduledDate.getUTCMonth(), scheduledDate.getUTCDate()),
+    Date.UTC(
+      scheduledDate.getUTCFullYear(),
+      scheduledDate.getUTCMonth(),
+      scheduledDate.getUTCDate(),
+    ),
   );
   const dateStr = dateOnly.toISOString().slice(0, 10);
   puzzleId = `puzzle-test-${dateStr}`;
@@ -165,7 +175,11 @@ afterAll(async () => {
   const article = (await provider.getArticles())[0]!;
   const scheduledDate = new Date();
   const dateOnly = new Date(
-    Date.UTC(scheduledDate.getUTCFullYear(), scheduledDate.getUTCMonth(), scheduledDate.getUTCDate()),
+    Date.UTC(
+      scheduledDate.getUTCFullYear(),
+      scheduledDate.getUTCMonth(),
+      scheduledDate.getUTCDate(),
+    ),
   );
   const dateStr = dateOnly.toISOString().slice(0, 10);
   await prisma.gameResult.deleteMany({});
@@ -500,7 +514,9 @@ describe("admin article import API", () => {
     expect(body.pageSize).toBe(20);
     expect(body.total).toBeGreaterThanOrEqual(1);
     expect(Array.isArray(body.items)).toBe(true);
-    const pet = body.items.find((item: { externalId: string }) => item.externalId === "wikipedia:en:Pet_door");
+    const pet = body.items.find(
+      (item: { externalId: string }) => item.externalId === "wikipedia:en:Pet_door",
+    );
     expect(pet).toBeTruthy();
     expect(pet.rawContent).toBeUndefined();
     expect(pet.sourceWikitext).toBeUndefined();
@@ -519,7 +535,9 @@ describe("admin article import API", () => {
       url: "/api/admin/articles?q=Pet%20door",
       cookies: cookies(adminSession),
     });
-    expect(byTitle.json().items.some((item: { title: string }) => item.title === "Pet door")).toBe(true);
+    expect(byTitle.json().items.some((item: { title: string }) => item.title === "Pet door")).toBe(
+      true,
+    );
   });
 });
 
@@ -643,14 +661,18 @@ describe("puzzle pool API", () => {
       cookies: cookies(adminSession),
     });
     expect(byTitle.statusCode).toBe(200);
-    expect(byTitle.json().items.some((item: { title: string }) => item.title === body.items[0].title)).toBe(true);
+    expect(
+      byTitle.json().items.some((item: { title: string }) => item.title === body.items[0].title),
+    ).toBe(true);
 
     const byId = await app.inject({
       method: "GET",
       url: `/api/admin/puzzles?q=${encodeURIComponent(body.items[0].id)}`,
       cookies: cookies(adminSession),
     });
-    expect(byId.json().items.some((item: { id: string }) => item.id === body.items[0].id)).toBe(true);
+    expect(byId.json().items.some((item: { id: string }) => item.id === body.items[0].id)).toBe(
+      true,
+    );
   });
 
   it("generate is idempotent for the same article and generator version", async () => {
@@ -704,7 +726,12 @@ describe("puzzle pool API", () => {
 describe("authentication and authorization", () => {
   beforeEach(async () => {
     await prisma.gameResult.deleteMany({});
-  });  async function completeOfficial(sessionId: string, attemptId: string, status: "WON" | "GAVE_UP" = "WON") {
+  });
+  async function completeOfficial(
+    sessionId: string,
+    attemptId: string,
+    status: "WON" | "GAVE_UP" = "WON",
+  ) {
     const today = await app.inject({ method: "GET", url: "/api/puzzles/today" });
     return app.inject({
       method: "POST",
@@ -743,7 +770,11 @@ describe("authentication and authorization", () => {
     const me2 = await app.inject({ method: "GET", url: "/api/me", cookies: cookies(session2) });
     expect(me2.json().id).toBe(userId);
     expect(me2.json().email).toBe("other@example.com");
-    expect(await prisma.user.count({ where: { identities: { some: { providerSubject: "google-user-sub" } } } })).toBe(1);
+    expect(
+      await prisma.user.count({
+        where: { identities: { some: { providerSubject: "google-user-sub" } } },
+      }),
+    ).toBe(1);
   });
 
   it("keeps multiple sessions authenticated independently", async () => {
@@ -752,8 +783,12 @@ describe("authentication and authorization", () => {
     expect((await login(desktop, "user")).statusCode).toBe(302);
     expect((await login(mobile, "user")).statusCode).toBe(302);
 
-    expect((await app.inject({ method: "GET", url: "/api/me", cookies: cookies(desktop) })).statusCode).toBe(200);
-    expect((await app.inject({ method: "GET", url: "/api/me", cookies: cookies(mobile) })).statusCode).toBe(200);
+    expect(
+      (await app.inject({ method: "GET", url: "/api/me", cookies: cookies(desktop) })).statusCode,
+    ).toBe(200);
+    expect(
+      (await app.inject({ method: "GET", url: "/api/me", cookies: cookies(mobile) })).statusCode,
+    ).toBe(200);
 
     const logout = await app.inject({
       method: "POST",
@@ -761,10 +796,18 @@ describe("authentication and authorization", () => {
       cookies: cookies(desktop),
     });
     expect(logout.statusCode).toBe(200);
-    expect((await app.inject({ method: "GET", url: "/api/me", cookies: cookies(desktop) })).statusCode).toBe(401);
-    expect((await app.inject({ method: "GET", url: "/api/me", cookies: cookies(mobile) })).statusCode).toBe(200);
+    expect(
+      (await app.inject({ method: "GET", url: "/api/me", cookies: cookies(desktop) })).statusCode,
+    ).toBe(401);
+    expect(
+      (await app.inject({ method: "GET", url: "/api/me", cookies: cookies(mobile) })).statusCode,
+    ).toBe(200);
 
-    const today = await app.inject({ method: "GET", url: "/api/puzzles/today", cookies: cookies(desktop) });
+    const today = await app.inject({
+      method: "GET",
+      url: "/api/puzzles/today",
+      cookies: cookies(desktop),
+    });
     expect(today.statusCode).toBe(200);
   });
 
@@ -888,7 +931,11 @@ describe("authentication and authorization", () => {
     const firstSession = await newSessionCookie();
     await completeOfficial(firstSession, "attempt-first-official");
     expect((await login(firstSession, "user")).statusCode).toBe(302);
-    const user = await app.inject({ method: "GET", url: "/api/me", cookies: cookies(firstSession) });
+    const user = await app.inject({
+      method: "GET",
+      url: "/api/me",
+      cookies: cookies(firstSession),
+    });
     const userId = user.json().id as string;
     const today = await app.inject({ method: "GET", url: "/api/puzzles/today" });
 
@@ -1000,7 +1047,9 @@ describe("authentication and authorization", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true });
-    expect((await app.inject({ method: "GET", url: "/api/me", cookies: cookies(sessionId) })).statusCode).toBe(401);
+    expect(
+      (await app.inject({ method: "GET", url: "/api/me", cookies: cookies(sessionId) })).statusCode,
+    ).toBe(401);
   });
 
   it("registers and logs in with email/password and assigns ADMIN from the allowlist", async () => {
@@ -1082,7 +1131,9 @@ describe("phase 5 archive, history, and accounts", () => {
     const source = await prisma.puzzle.findUniqueOrThrow({ where: { id: await todayPuzzleId() } });
     const date = new Date();
     date.setUTCDate(date.getUTCDate() - daysAgo);
-    const dateOnly = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const dateOnly = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
     const archiveId = `puzzle-archive-${puzzleNumber}`;
     const clientPuzzleData = {
       ...(source.clientPuzzleData as Record<string, unknown>),
@@ -1125,7 +1176,10 @@ describe("phase 5 archive, history, and accounts", () => {
   it("lists public archive newest-first without today or article plaintext", async () => {
     const older = await createArchivePuzzle(2, 97);
     const newer = await createArchivePuzzle(1, 98);
-    const anonymous = await app.inject({ method: "GET", url: "/api/puzzles/archive?page=1&pageSize=10" });
+    const anonymous = await app.inject({
+      method: "GET",
+      url: "/api/puzzles/archive?page=1&pageSize=10",
+    });
     expect(anonymous.statusCode).toBe(200);
     const body = anonymous.json();
     expect(body.items.map((item: { puzzleId: string }) => item.puzzleId)).toEqual([newer, older]);
@@ -1136,7 +1190,10 @@ describe("phase 5 archive, history, and accounts", () => {
     expect(body.items[0].title).toBeUndefined();
     expect(body.items[0].payload).toBeUndefined();
 
-    const page1 = await app.inject({ method: "GET", url: "/api/puzzles/archive?page=1&pageSize=1" });
+    const page1 = await app.inject({
+      method: "GET",
+      url: "/api/puzzles/archive?page=1&pageSize=1",
+    });
     expect(page1.json().items).toHaveLength(1);
     expect(page1.json().items[0].puzzleId).toBe(newer);
     expect(page1.json().total).toBe(2);
@@ -1494,7 +1551,9 @@ describe("phase 5 archive, history, and accounts", () => {
       payload: { token, password: "newpassword123" },
     });
     expect(reset.statusCode).toBe(200);
-    expect((await app.inject({ method: "GET", url: "/api/me", cookies: cookies(sessionId) })).statusCode).toBe(401);
+    expect(
+      (await app.inject({ method: "GET", url: "/api/me", cookies: cookies(sessionId) })).statusCode,
+    ).toBe(401);
     const reused = await app.inject({
       method: "POST",
       url: "/api/auth/password/reset",
@@ -1756,7 +1815,9 @@ describe("phase 6 scoring and leaderboard", () => {
   it("excludes archive official wins and give-ups from today's leaderboard", async () => {
     const date = new Date();
     date.setUTCDate(date.getUTCDate() - 3);
-    const dateOnly = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const dateOnly = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
     const source = await prisma.puzzle.findUniqueOrThrow({ where: { id: await todayPuzzleId() } });
     const archiveId = "puzzle-archive-lb-180";
     await prisma.puzzle.create({
@@ -1766,7 +1827,11 @@ describe("phase 6 scoring and leaderboard", () => {
         puzzleNumber: 180,
         scheduledDate: dateOnly,
         generatorVersion: source.generatorVersion,
-        clientPuzzleData: { ...(source.clientPuzzleData as object), id: archiveId, puzzleNumber: 180 },
+        clientPuzzleData: {
+          ...(source.clientPuzzleData as object),
+          id: archiveId,
+          puzzleNumber: 180,
+        },
         status: "PUBLISHED",
         title: source.title,
         titleMatchKey: source.titleMatchKey,
@@ -1819,7 +1884,9 @@ describe("phase 6 scoring and leaderboard", () => {
   it("marks archive play state without exposing answers", async () => {
     const date = new Date();
     date.setUTCDate(date.getUTCDate() - 4);
-    const dateOnly = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const dateOnly = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
     const source = await prisma.puzzle.findUniqueOrThrow({ where: { id: await todayPuzzleId() } });
     const archiveId = "puzzle-archive-state-181";
     await prisma.puzzle.create({
@@ -1829,7 +1896,11 @@ describe("phase 6 scoring and leaderboard", () => {
         puzzleNumber: 181,
         scheduledDate: dateOnly,
         generatorVersion: source.generatorVersion,
-        clientPuzzleData: { ...(source.clientPuzzleData as object), id: archiveId, puzzleNumber: 181 },
+        clientPuzzleData: {
+          ...(source.clientPuzzleData as object),
+          id: archiveId,
+          puzzleNumber: 181,
+        },
         status: "PUBLISHED",
         title: source.title,
         titleMatchKey: source.titleMatchKey,
@@ -1850,7 +1921,9 @@ describe("phase 6 scoring and leaderboard", () => {
       url: "/api/puzzles/archive?page=1&pageSize=20",
       cookies: cookies(sessionId),
     });
-    const unplayed = before.json().items.find((item: { puzzleId: string }) => item.puzzleId === archiveId);
+    const unplayed = before
+      .json()
+      .items.find((item: { puzzleId: string }) => item.puzzleId === archiveId);
     expect(unplayed.playState).toBe("UNPLAYED");
 
     await app.inject({
@@ -1871,7 +1944,9 @@ describe("phase 6 scoring and leaderboard", () => {
       url: "/api/puzzles/archive?page=1&pageSize=20",
       cookies: cookies(sessionId),
     });
-    const played = after.json().items.find((item: { puzzleId: string }) => item.puzzleId === archiveId);
+    const played = after
+      .json()
+      .items.find((item: { puzzleId: string }) => item.puzzleId === archiveId);
     expect(played.playState).toBe("COMPLETED");
     expect(JSON.stringify(after.json())).not.toContain("Ada Lovelace");
 
@@ -1968,6 +2043,30 @@ describe("phase 7 production readiness", () => {
     await prod.close();
   });
 
+  it("sets the session cookie SameSite from config", async () => {
+    const sameSiteFor = async (overrides: Partial<typeof config>) => {
+      const instance = await buildApp({
+        config: { ...config, ...overrides },
+        wikipediaProvider: { fetchPage },
+        googleOAuth,
+        mailer,
+      });
+      const res = await instance.inject({ method: "GET", url: "/api/puzzles/today" });
+      await instance.close();
+      const raw = [res.headers["set-cookie"]].flat().join(";");
+      return /samesite=(\w+)/i.exec(raw)?.[1]?.toLowerCase();
+    };
+    const prodOrigin = { FRONTEND_ORIGIN: "https://play.wikognito.test" };
+    expect(await sameSiteFor({ NODE_ENV: "production", ...prodOrigin })).toBe("none");
+    expect(
+      await sameSiteFor({
+        NODE_ENV: "production",
+        SESSION_COOKIE_SAMESITE: "lax",
+        ...prodOrigin,
+      }),
+    ).toBe("lax");
+  });
+
   it("rate limits auth endpoints", async () => {
     const limited = await buildApp({
       config: {
@@ -2007,7 +2106,10 @@ describe("phase 7 production readiness", () => {
       mailer,
     });
 
-    const missing = await app.inject({ method: "POST", url: "/api/internal/puzzles/publish-today" });
+    const missing = await app.inject({
+      method: "POST",
+      url: "/api/internal/puzzles/publish-today",
+    });
     expect(missing.statusCode).toBe(503);
     expect(missing.json().error.code).toBe("PUBLISH_UNAVAILABLE");
 
@@ -2046,7 +2148,9 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
   beforeEach(async () => {
     adminSession = await newSessionCookie();
     expect((await login(adminSession, "admin")).statusCode).toBe(302);
-    await prisma.dossierCaseFile.deleteMany({ where: { dossier: { slug: { startsWith: "test-dossier" } } } });
+    await prisma.dossierCaseFile.deleteMany({
+      where: { dossier: { slug: { startsWith: "test-dossier" } } },
+    });
     await prisma.dossier.deleteMany({ where: { slug: { startsWith: "test-dossier" } } });
     await prisma.gameResult.deleteMany({ where: { puzzleId: { startsWith: "puzzle-dossier-" } } });
     await prisma.dailyPuzzle.deleteMany({ where: { puzzleId: { startsWith: "puzzle-dossier-" } } });
@@ -2056,7 +2160,9 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
 
   async function createReadyPuzzle(suffix: string, title = `Dossier ${suffix}`) {
     const source = await prisma.puzzle.findUniqueOrThrow({ where: { id: await todayPuzzleId() } });
-    const sourceArticle = await prisma.article.findUniqueOrThrow({ where: { id: source.articleId } });
+    const sourceArticle = await prisma.article.findUniqueOrThrow({
+      where: { id: source.articleId },
+    });
     const articleId = `article-dossier-${suffix}`;
     const puzzleId = `puzzle-dossier-${suffix}`;
     await prisma.article.create({
@@ -2103,7 +2209,9 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
     expect(created.statusCode).toBe(200);
     const publicList = await app.inject({ method: "GET", url: "/api/dossiers" });
     expect(publicList.statusCode).toBe(200);
-    expect(publicList.json().items.some((item: { slug: string }) => item.slug === "test-dossier-draft")).toBe(false);
+    expect(
+      publicList.json().items.some((item: { slug: string }) => item.slug === "test-dossier-draft"),
+    ).toBe(false);
 
     const published = await app.inject({
       method: "PATCH",
@@ -2113,7 +2221,11 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
     });
     expect(published.statusCode).toBe(200);
     const afterPublish = await app.inject({ method: "GET", url: "/api/dossiers" });
-    expect(afterPublish.json().items.some((item: { slug: string }) => item.slug === "test-dossier-draft")).toBe(true);
+    expect(
+      afterPublish
+        .json()
+        .items.some((item: { slug: string }) => item.slug === "test-dossier-draft"),
+    ).toBe(true);
 
     await app.inject({
       method: "PATCH",
@@ -2122,7 +2234,11 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
       payload: { status: "ARCHIVED" },
     });
     const afterArchive = await app.inject({ method: "GET", url: "/api/dossiers" });
-    expect(afterArchive.json().items.some((item: { slug: string }) => item.slug === "test-dossier-draft")).toBe(false);
+    expect(
+      afterArchive
+        .json()
+        .items.some((item: { slug: string }) => item.slug === "test-dossier-draft"),
+    ).toBe(false);
   });
 
   it("searches and paginates public and admin dossier lists", async () => {
@@ -2144,7 +2260,9 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
     const byName = await app.inject({ method: "GET", url: "/api/dossiers?q=Searchable" });
     expect(byName.statusCode).toBe(200);
     expect(byName.json().page).toBe(1);
-    expect(byName.json().items.some((item: { slug: string }) => item.slug === "test-dossier-search")).toBe(true);
+    expect(
+      byName.json().items.some((item: { slug: string }) => item.slug === "test-dossier-search"),
+    ).toBe(true);
 
     const byId = await app.inject({
       method: "GET",
@@ -2188,7 +2306,10 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
       cookies: cookies(adminSession),
       payload: { articleId: second.articleId },
     });
-    expect(addSecond.json().cases.map((item: { title: string }) => item.title)).toEqual(["Alpha", "Beta"]);
+    expect(addSecond.json().cases.map((item: { title: string }) => item.title)).toEqual([
+      "Alpha",
+      "Beta",
+    ]);
     const duplicate = await app.inject({
       method: "POST",
       url: `/api/admin/dossiers/${id}/cases`,
@@ -2303,7 +2424,9 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
     ).rejects.toMatchObject({ code: "P2002" });
 
     const ready = await createReadyPuzzle("unique");
-    const dossier = await prisma.dossier.findUniqueOrThrow({ where: { slug: "test-dossier-unique" } });
+    const dossier = await prisma.dossier.findUniqueOrThrow({
+      where: { slug: "test-dossier-unique" },
+    });
     await prisma.dossierCaseFile.create({
       data: { dossierId: dossier.id, puzzleId: ready.puzzleId, position: 1 },
     });
@@ -2329,7 +2452,9 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
     const second = await publishDailyPuzzle({ prisma, date: future });
     expect(second.status).toBe("ALREADY_PUBLISHED");
     expect(second.puzzleId).toBe(first.puzzleId);
-    expect((await prisma.puzzle.findUniqueOrThrow({ where: { id: invalid.puzzleId } })).status).toBe("READY");
+    expect(
+      (await prisma.puzzle.findUniqueOrThrow({ where: { id: invalid.puzzleId } })).status,
+    ).toBe("READY");
 
     await prisma.puzzle.update({
       where: { id: invalid.puzzleId },
@@ -2351,5 +2476,3 @@ describe("phase 9 dossiers, corpus, and daily publish", () => {
     }
   });
 });
-
-

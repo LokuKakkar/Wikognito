@@ -1,0 +1,12 @@
+[Unit]
+Description=Wikognito Postgres backup
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/wikognito
+Environment=BACKUP_DIR=/srv/wikognito/backups
+Environment=WIKOGNITO_ENV_FILE=/srv/wikognito/.env.prod
+# Uncomment once rclone is configured for OCI Object Storage:
+# Environment=RCLONE_REMOTE=oci:wikognito-backups
+ExecStart=/opt/wikognito/infrastructure/docker/backup/backup.sh

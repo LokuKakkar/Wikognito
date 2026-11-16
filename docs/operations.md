@@ -125,3 +125,23 @@ Do not optimize for imaginary high traffic. Re-measure if article HTML or leader
 - `prisma` → `deepmerge-ts` (config merge)
 
 None are in the authentication request path. Left un-upgraded to avoid a blind Next/Prisma bump. Re-check before release; upgrade only if a finding is exploitable in our deployment.
+
+## Backups
+
+Postgres runs in the production compose stack, so it needs its own backups.
+
+- `infrastructure/docker/backup/backup.sh` writes a `pg_dump --format=custom` file to `BACKUP_DIR` (default `./backups`), prunes local dumps older than `KEEP_DAYS` (7), and, when `RCLONE_REMOTE` is set (for example an OCI Object Storage bucket via an S3-compatible rclone remote), uploads it and prunes remote dumps older than `REMOTE_KEEP_DAYS` (30).
+- `infrastructure/docker/backup/wikognito-backup.service` and `.timer` run it nightly at 02:30 UTC. The unit files assume the repo at `/opt/wikognito` and the env file at `/srv/wikognito/.env.prod`. Install on the VM, adapting the paths (here the repo is `/home/ubuntu/Wikognito` and the job runs as `ubuntu`):
+  ```bash
+  for f in wikognito-backup.service wikognito-backup.timer; do
+    sed -e 's#/opt/wikognito#/home/ubuntu/Wikognito#g' \
+        -e 's#/srv/wikognito/.env.prod#/home/ubuntu/Wikognito/.env.prod#g' \
+        -e 's#^\[Service\]#[Service]\nUser=ubuntu#' \
+        infrastructure/docker/backup/$f | sudo tee /etc/systemd/system/$f >/dev/null
+  done
+  sudo systemctl daemon-reload && sudo systemctl enable --now wikognito-backup.timer
+  sudo systemctl start wikognito-backup.service   # run once to prove it works
+  ```
+- **Restore drill:** `infrastructure/docker/backup/restore-drill.sh <dump>` restores into a throwaway Postgres container and prints row counts. Run it after setting backups up and about once a quarter.
+- Real restore: stop the backend, restore the dump into a fresh Postgres volume with `pg_restore`, start the backend.
+- Keep an occasional copy of a dump off Oracle, for example monthly from your laptop: `scp -i <key> "ubuntu@<ip>:/srv/wikognito/backups/*.dump" ~/wikognito-backups/`. Dumps contain user emails and password hashes, so keep them private.
