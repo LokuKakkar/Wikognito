@@ -34,7 +34,7 @@ If `.env.prod` is elsewhere, set `WIKOGNITO_ENV_FILE` (the backend `env_file`) a
 
 ## First deploy
 
-1. Create the VM and network (Oracle console): A1.Flex, 2 OCPU / 12 GB, Ubuntu 24.04 aarch64, security list ingress for TCP 80 and 443 (and 22 from your IP only). Do not open 5432, 6379, 4000 or 3002.
+1. Create the VM and network (Oracle console), following [Oracle account and cost safety](#oracle-account-and-cost-safety) below: A1.Flex, 2 OCPU / 12 GB, Ubuntu 24.04 aarch64, security list ingress for TCP 80 and 443 (and 22 from your IP only). Do not open 5432, 6379, 4000 or 3002.
 2. On the VM, open the host firewall too (Oracle's Ubuntu image rejects everything but SSH):
    ```bash
    sudo iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT
@@ -93,9 +93,25 @@ FRONTEND_ORIGIN=https://wikognito.localtest.me:18443
 
 `dc up -d --build`, then open `https://wikognito.localtest.me:18443` and accept the certificate warning once. Do not use `localhost` as `FRONTEND_ORIGIN`: production mode rejects it.
 
+## Oracle account and cost safety
+
+The home region is Mumbai (`ap-mumbai-1`), which has a single availability domain, so "try another AD" does not help. Free-tier accounts there often get "Out of capacity for shape VM.Standard.A1.Flex". The account was upgraded to **Pay As You Go** (PAYG) to get A1 capacity and to avoid idle reclamation. PAYG does not make Always Free resources cost money, but anything outside the allowance is billed, and nothing autoscales unless configured.
+
+Before creating anything:
+
+1. Create a monthly budget of about $1 (Billing & Cost Management → Budgets) with email alerts at 1% and 100% of it.
+2. Create exactly one compute instance: `VM.Standard.A1.Flex`, 2 OCPU / 12 GB, Ubuntu 24.04 aarch64, boot volume 50-100 GB (Always Free covers 200 GB of volumes in total). The console must show the "Always Free-eligible" label for it. If it is missing, stop.
+3. Use the "VCN with Internet Connectivity" wizard. Do not add a NAT gateway, Load Balancer, DNS zone, Bastion, Vault or boot volume backup policies, and no second A1 or other compute instance.
+4. Use an ephemeral public IP, or a reserved IP attached to the running VM. An unattached reserved IP can be billed.
+5. A day after creating it, check Billing → Cost Analysis shows $0. Check again after any change in the console.
+
+If creation still fails on capacity, retry later or script the retry with the OCI CLI (`oci compute instance launch`) until it succeeds.
+
+Allowances (**VERIFY** on Oracle's Always Free page, they change): A1 1,500 OCPU-hours and 9,000 GB-hours per month (2 OCPU × 744 h and 12 GB × 744 h fit), 200 GB block volumes, 10 TB outbound per month, 20 GB Object Storage.
+
 ## Notes
 
-- Always Free compute can be reclaimed when idle (7 days of low CPU, network and memory). Check Oracle's current rules; the backups are the recovery path.
+- Idle reclamation applies to Always Free compute; PAYG accounts are reported not to be reclaimed (**VERIFY**). Backups are still the recovery path.
 - Outbound mail: leave `SMTP_URL` empty to log password-reset links to `dc logs backend`. OCI blocks port 25; use 587 or 465 if a provider is added later, and URL-encode credentials in `SMTP_URL`.
 - Architecture and the full migration rationale: [oracle-deployment-plan.md](oracle-deployment-plan.md).
 - The previous Render setup (separate frontend and API hosts, `SameSite=None`) is retired.
