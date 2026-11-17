@@ -1,0 +1,7 @@
+# Caddy with the rate-limit module compiled in (stock Caddy has no request rate limiting).
+# Multi-arch: builds natively on the Oracle A1 (arm64) and on amd64 laptops.
+FROM caddy:2-builder AS builder
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit
+
+FROM caddy:2
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy

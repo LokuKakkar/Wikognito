@@ -49,10 +49,17 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   PUBLISH_SECRET: z.string().optional().default(""),
   RATE_LIMIT_ENABLED: optionalBoolean,
-  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(120),
-  RATE_LIMIT_GAME_MAX: z.coerce.number().int().positive().default(60),
+  // Login/register/reset are the expensive routes (scrypt), so this is the tightest limit.
+  // Limits are per client IP per minute and sized for many real players behind one shared IP.
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(30),
+  RATE_LIMIT_GAME_MAX: z.coerce.number().int().positive().default(300),
   RATE_LIMIT_ADMIN_MAX: z.coerce.number().int().positive().default(30),
-  RATE_LIMIT_PUBLIC_MAX: z.coerce.number().int().positive().default(120),
+  RATE_LIMIT_PUBLIC_MAX: z.coerce.number().int().positive().default(600),
+  /**
+   * New anonymous sessions one address may create per 10 minutes (each is a Postgres row).
+   * Generous on purpose: a campus, office or mobile carrier puts many real players behind one IP.
+   */
+  RATE_LIMIT_NEW_SESSION_MAX: z.coerce.number().int().positive().default(600),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema> & {

@@ -1,0 +1,6 @@
+[Unit]
+Description=Wikognito outbound-traffic cost guard
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/ubuntu/Wikognito/infrastructure/host/egress-guard.sh
