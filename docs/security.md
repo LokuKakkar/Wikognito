@@ -9,7 +9,7 @@ create a bill. This page says what stops what, and what cannot be stopped from o
 | --- | --- | --- |
 | Oracle network | Absorbs most volumetric (L3/L4) floods before they reach the VM | Oracle |
 | Oracle security list | Only 22, 80, 443 reach the VM | OCI console |
-| Host firewall | Caps simultaneous and new connections per source address on 80/443 | `infrastructure/host/firewall.sh` |
+| Host firewall (optional, not deployed) | Caps simultaneous and new connections per source address on 80/443; skipped because Caddy limits and timeouts cover it and it can drop real users sharing an IP | `infrastructure/host/firewall.sh` |
 | Caddy | Per-IP request-rate limits for the whole site (frontend included), body size cap, slow-client timeouts | `infrastructure/docker/Caddyfile` |
 | Backend | Per-IP, per-route limits in Redis; new-session throttle; scrypt concurrency cap; 64 KB body limit | `apps/backend/src` |
 | Containers | CPU, memory and process ceilings so a flood cannot starve SSH or the host | `docker-compose.prod.yml` |
