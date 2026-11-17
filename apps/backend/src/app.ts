@@ -65,7 +65,7 @@ import {
 import { createMailer, type Mailer } from "./modules/auth/mailer.js";
 import { AppError, isAuthFailure, toErrorResponse } from "./modules/errors.js";
 import { LeaderboardService } from "./modules/leaderboard/leaderboard.service.js";
-import { rateLimitMax } from "./modules/security/rate-limit.js";
+import { isValidSessionId, rateLimitKey, rateLimitMax } from "./modules/security/rate-limit.js";
 import { timingSafeEqualSecret } from "./modules/security/secrets.js";
 import { DossierRepository } from "./modules/dossiers/dossier.repository.js";
 import { DossierService } from "./modules/dossiers/dossier.service.js";
@@ -86,9 +86,18 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const probeRedis = deps.checkRedis ?? checkRedisHealth;
   const app = Fastify({
     logger: false,
-    // Render terminates TLS and forwards the visitor address. Trust that hop in production
-    // so rate limits key on the client IP. Tests and local dev keep the direct socket address.
-    trustProxy: config.NODE_ENV === "production",
+    // Caddy is the only hop in front of the backend (the backend port is never published) and it
+    // sets X-Forwarded-For itself. Trust exactly one hop so a client cannot spoof its address by
+    // sending its own X-Forwarded-For. Tests and local dev keep the direct socket address.
+    trustProxy: config.NODE_ENV === "production" ? 1 : false,
+    // Every JSON body here is tiny; reject anything bigger before it is buffered or parsed.
+    bodyLimit: 64 * 1024,
+    maxParamLength: 200,
+    // Slowloris defence: cap how long a client may take to send a request or idle on a socket.
+    connectionTimeout: 30_000,
+    requestTimeout: 15_000,
+    keepAliveTimeout: 5_000,
+    maxRequestsPerSocket: 500,
     requestIdHeader: "x-request-id",
     genReqId: (request) => {
       const incoming = request.headers["x-request-id"];
@@ -152,10 +161,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       skipOnError: true,
       allowList: (request) => rateLimitMax(request.url, config) === 0,
       max: (request) => rateLimitMax(request.url, config) || config.RATE_LIMIT_PUBLIC_MAX,
-      keyGenerator: (request) => {
-        const sessionId = request.cookies?.[config.SESSION_COOKIE_NAME];
-        return sessionId ? `${rateLimitMax(request.url, config)}:${sessionId}` : request.ip;
-      },
+      // Key on the address only: a cookie is client-chosen and would let a flood dodge the limit.
+      keyGenerator: (request) => rateLimitKey(request.url, request.ip),
       errorResponseBuilder: (request, context) => ({
         error: {
           code: "RATE_LIMITED",
@@ -226,15 +233,24 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         })
       : new UnconfiguredGoogleOAuth());
 
+  /**
+   * Returns the caller's session id, minting one when the cookie is missing or malformed.
+   * Minting writes a Postgres row, so it is throttled per address; touching an existing session
+   * is refreshed at most every 5 minutes instead of on every request.
+   */
   async function ensureSessionId(
-    request: { cookies: Record<string, string | undefined> },
+    request: { cookies: Record<string, string | undefined>; ip: string },
     reply: {
       setCookie: (name: string, value: string, opts: Record<string, unknown>) => void;
     },
   ): Promise<string> {
-    let sessionId = request.cookies[config.SESSION_COOKIE_NAME];
+    const presented = request.cookies[config.SESSION_COOKIE_NAME];
+    let sessionId = isValidSessionId(presented) ? presented : undefined;
+    let mustPersist = false;
     if (!sessionId) {
+      await throttleNewSession(request.ip);
       sessionId = sessionService.createSessionId();
+      mustPersist = true;
       reply.setCookie(config.SESSION_COOKIE_NAME, sessionId, {
         path: "/",
         httpOnly: true,
@@ -243,9 +259,33 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         secure: config.NODE_ENV === "production",
         maxAge: config.SESSION_TTL_SECONDS,
       });
+    } else {
+      try {
+        // SET NX succeeds only when the "recently refreshed" marker is absent.
+        mustPersist = (await redis.set(`session:seen:${sessionId}`, "1", "EX", 300, "NX")) === "OK";
+      } catch {
+        mustPersist = true;
+      }
     }
-    await identitySessions.upsert(sessionId, config.SESSION_TTL_SECONDS);
+    if (mustPersist) {
+      await identitySessions.upsert(sessionId, config.SESSION_TTL_SECONDS);
+    }
     return sessionId;
+  }
+
+  async function throttleNewSession(ip: string): Promise<void> {
+    if (!config.RATE_LIMIT_ENABLED) return;
+    try {
+      const key = `session:new:${ip}`;
+      const count = await redis.incr(key);
+      if (count === 1) await redis.expire(key, 600);
+      if (count > config.RATE_LIMIT_NEW_SESSION_MAX) {
+        throw new AppError("RATE_LIMITED", "Too many requests.", 429);
+      }
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      // Redis trouble must not lock everyone out; the per-route limiter still applies.
+    }
   }
 
   function mapError(error: unknown, reply: FastifyReply) {

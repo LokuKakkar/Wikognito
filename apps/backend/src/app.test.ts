@@ -2098,6 +2098,64 @@ describe("phase 7 production readiness", () => {
     await limited.close();
   });
 
+  it("cannot dodge the rate limit by rotating the session cookie", async () => {
+    const limited = await buildApp({
+      config: { ...config, RATE_LIMIT_ENABLED: true, RATE_LIMIT_AUTH_MAX: 2 },
+      wikipediaProvider: { fetchPage },
+      googleOAuth,
+      mailer,
+    });
+    const ip = `198.51.100.${1 + Math.floor(Math.random() * 250)}`;
+    const statuses: number[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const res = await limited.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        remoteAddress: ip,
+        cookies: { [config.SESSION_COOKIE_NAME]: randomUUID() },
+        payload: { email: "rotate@example.com", password: "password123" },
+      });
+      statuses.push(res.statusCode);
+    }
+    expect(statuses.slice(0, 2)).not.toContain(429);
+    expect(statuses.slice(2)).toEqual([429, 429, 429]);
+    await limited.close();
+  });
+
+  it("ignores malformed session cookies and mints a fresh server-side id", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/puzzles/today",
+      cookies: { [config.SESSION_COOKIE_NAME]: "not-a-uuid'; --" },
+    });
+    expect(res.statusCode).toBe(200);
+    const minted = await cookieFrom(res);
+    expect(minted).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await prisma.session.findUnique({ where: { id: "not-a-uuid'; --" } })).toBeNull();
+    expect(await prisma.session.findUnique({ where: { id: minted } })).not.toBeNull();
+  });
+
+  it("limits how many new sessions one address can create", async () => {
+    const limited = await buildApp({
+      config: { ...config, RATE_LIMIT_ENABLED: true, RATE_LIMIT_NEW_SESSION_MAX: 2 },
+      wikipediaProvider: { fetchPage },
+      googleOAuth,
+      mailer,
+    });
+    const ip = `192.0.2.${1 + Math.floor(Math.random() * 250)}`;
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      const res = await limited.inject({
+        method: "GET",
+        url: "/api/stats",
+        remoteAddress: ip,
+      });
+      statuses.push(res.statusCode);
+    }
+    expect(statuses).toEqual([200, 200, 429, 429]);
+    await limited.close();
+  });
+
   it("publishes via PUBLISH_SECRET and rejects bad or missing secrets", async () => {
     const secretApp = await buildApp({
       config: { ...config, PUBLISH_SECRET: "publish-test-secret" },

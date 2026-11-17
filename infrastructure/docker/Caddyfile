@@ -1,8 +1,59 @@
 # One public origin: the API and health checks go to the backend, the rest to Next.js.
 # SITE_ADDRESS: wikognito.duckdns.org on the VM; wikognito.localtest.me for local tests.
+#
+# Abuse protection lives here because Caddy is the only thing that sees every request,
+# including the ones for the Next.js frontend, which has no limiter of its own.
+{
+	order rate_limit before basicauth
+
+	servers {
+		# Slowloris / slow-body defence: a client must send headers and body promptly.
+		timeouts {
+			read_header 10s
+			read_body 15s
+			write 30s
+			idle 60s
+		}
+		max_header_size 16KB
+	}
+}
+
 {$SITE_ADDRESS} {
 	{$CADDY_TLS:}
 	encode zstd gzip
+
+	# No legitimate request here carries a large body.
+	request_body {
+		max_size 64KB
+	}
+
+	# Per-address limits (one window of requests per client IP). Sized for many real players behind
+	# one shared IP (campus, office, mobile carrier); a page load is ~40 requests with assets.
+	# Backend routes also have their own Redis-backed limits; these catch page and asset floods
+	# that never reach the backend.
+	rate_limit {
+		zone auth {
+			match {
+				path /api/auth/* /api/me/password/*
+			}
+			key {remote_host}
+			events 30
+			window 1m
+		}
+		zone api {
+			match {
+				path /api/* /health/ready
+			}
+			key {remote_host}
+			events 1200
+			window 1m
+		}
+		zone site {
+			key {remote_host}
+			events 3000
+			window 1m
+		}
+	}
 
 	@backend path /api/* /health /health/ready
 	handle @backend {
