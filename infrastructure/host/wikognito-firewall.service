@@ -1,0 +1,13 @@
+[Unit]
+Description=Wikognito per-source connection limits (DOCKER-USER)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash /home/ubuntu/Wikognito/infrastructure/host/firewall.sh
+ExecStop=/bin/bash /home/ubuntu/Wikognito/infrastructure/host/firewall.sh remove
+
+[Install]
+WantedBy=multi-user.target

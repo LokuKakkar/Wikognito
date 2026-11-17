@@ -31,10 +31,10 @@ export const DependencyHealthSchema = z.object({
 export type DependencyHealth = z.infer<typeof DependencyHealthSchema>;
 
 export const CompleteGameRequestSchema = z.object({
-  puzzleId: z.string(),
-  attemptId: z.string(),
+  puzzleId: z.string().max(64),
+  attemptId: z.string().max(64),
   status: z.enum(["WON", "GAVE_UP"]),
-  guesses: z.array(z.string()),
+  guesses: z.array(z.string().max(64)).max(1000),
   startedAt: z.number(),
   completedAt: z.number(),
 });
@@ -159,7 +159,7 @@ export const EmailAuthRequestSchema = z.object({
 export type EmailAuthRequest = z.infer<typeof EmailAuthRequestSchema>;
 
 export const ImportArticleRequestSchema = z.object({
-  url: z.string().min(1),
+  url: z.string().min(1).max(2048),
 });
 export type ImportArticleRequest = z.infer<typeof ImportArticleRequestSchema>;
 
@@ -417,7 +417,7 @@ export const AdminDossierDetailSchema = AdminDossierSummarySchema.extend({
 export type AdminDossierDetail = z.infer<typeof AdminDossierDetailSchema>;
 
 export const CorpusProcessRequestSchema = z.object({
-  urls: z.array(z.string().min(1)).min(1).max(50),
+  urls: z.array(z.string().min(1).max(2048)).min(1).max(50),
 });
 export type CorpusProcessRequest = z.infer<typeof CorpusProcessRequestSchema>;
 

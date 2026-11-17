@@ -3,6 +3,7 @@ import { buildApp } from "./app.js";
 import { logger, setLogLevel } from "./infrastructure/logger.js";
 import { disconnectPrisma, getPrisma } from "./infrastructure/postgres/prisma.js";
 import { disconnectRedis, getRedis } from "./infrastructure/redis/redis-client.js";
+import { startSessionCleanup } from "./modules/sessions/session-cleanup.js";
 import { startDailyPublishScheduler } from "./modules/puzzles/daily-publish-scheduler.js";
 
 async function main(): Promise<void> {
@@ -10,9 +11,11 @@ async function main(): Promise<void> {
   setLogLevel(config.LOG_LEVEL);
   const app = await buildApp({ config });
   let stopScheduler = () => {};
+  let stopCleanup = () => {};
 
   const shutdown = async (signal: string) => {
     stopScheduler();
+    stopCleanup();
     logger.info("shutdown", { signal });
     await app.close();
     await disconnectPrisma();
@@ -30,6 +33,13 @@ async function main(): Promise<void> {
     redis: getRedis(config),
     log: (event, fields) => {
       if (event === "daily_publish_failed") logger.error(event, fields);
+      else logger.info(event, fields);
+    },
+  });
+  stopCleanup = startSessionCleanup({
+    prisma: getPrisma(),
+    log: (event, fields) => {
+      if (event === "session_cleanup_failed") logger.error(event, fields);
       else logger.info(event, fields);
     },
   });
